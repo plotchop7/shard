@@ -1,1 +1,3624 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>shard</title>
+<style>
+  :root {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface-2: #141414;
+    --surface-3: #1e1e1e;
+    --border: #222222;
+    --border-hi: #383838;
+    --fg: #ffffff;
+    --muted: #7c7c7c;
+    --dim: #262626;
+    --radius: 20px;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  #app {
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  body.bw-mode .art-img {
+    filter: grayscale(100%) contrast(1.18) brightness(1.06);
+  }
+
+  /* ШАПКА */
+  header {
+    height: 54px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 20;
+  }
+
+  .brand {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: var(--fg);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.14s var(--ease), background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+  .icon-btn:active { transform: scale(0.88); }
+  .icon-btn.active {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+  .icon-btn.spinning svg {
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .icon-btn svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ПЕРЕКЛЮЧАТЕЛЬ ЭКРАНОВ */
+  .nav-tabs {
+    display: flex;
+    padding: 0 18px 8px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .nav-tab {
+    flex: 1;
+    height: 36px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: background 0.18s var(--ease), color 0.18s ease, border-color 0.18s ease, transform 0.14s ease;
+  }
+  .nav-tab:active { transform: scale(0.97); }
+  .nav-tab.active {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+
+  .nav-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: var(--surface-3);
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+  .nav-tab.active .nav-badge {
+    background: #1a1a1a;
+    color: var(--fg);
+  }
+
+  /* ЭКРАНЫ */
+  .view {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .view.active {
+    display: flex;
+    animation: viewIn 0.2s var(--ease);
+  }
+
+  @keyframes viewIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ЭКРАН ДОСТУПА / ПУСТОЙ БИБЛИОТЕКИ */
+  .gate-screen {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    z-index: 35;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    text-align: center;
+    gap: 14px;
+  }
+  .gate-screen.open { display: flex; }
+  .gate-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  .gate-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  /* ПОЛОСА НАСТРОЕНИЙ */
+  .vibes-bar {
+    display: flex;
+    gap: 7px;
+    padding: 2px 18px 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .vibes-bar::-webkit-scrollbar { display: none; }
+
+  .vibe-pill {
+    padding: 7px 14px;
+    border-radius: 100px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.16s var(--ease), color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+  }
+  .vibe-pill:active { transform: scale(0.94); }
+  .vibe-pill.active {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+  .vibe-pill.add-pill {
+    border-style: dashed;
+    border-color: var(--border-hi);
+    color: var(--fg);
+  }
+
+  /* КАРУСЕЛЬ ОБЛОЖЕК */
+  .carousel-stage {
+    position: relative;
+    width: 100%;
+    height: clamp(190px, 34dvh, 274px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    touch-action: pan-y;
+  }
+
+  .cover-slot {
+    position: absolute;
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: transform 0.26s var(--ease), opacity 0.22s ease, border-color 0.22s ease;
+    border: 1px solid #262626;
+    background: var(--surface-2);
+    will-change: transform, opacity;
+  }
+  .cover-slot.no-anim { transition: none !important; }
+
+  .cover-slot.prev {
+    width: clamp(132px, 21dvh, 170px);
+    height: clamp(132px, 21dvh, 170px);
+    transform: translateX(-168px) scale(0.86);
+    opacity: 0.34;
+    z-index: 1;
+  }
+  .cover-slot.curr {
+    width: clamp(178px, 30dvh, 244px);
+    height: clamp(178px, 30dvh, 244px);
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    z-index: 3;
+    border-color: #3a3a3a;
+  }
+  .cover-slot.next {
+    width: clamp(132px, 21dvh, 170px);
+    height: clamp(132px, 21dvh, 170px);
+    transform: translateX(168px) scale(0.86);
+    opacity: 0.34;
+    z-index: 1;
+  }
+
+  @keyframes slideFromRight {
+    from { opacity: 0.55; transform: translateX(48px) scale(0.93); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  @keyframes slideFromLeft {
+    from { opacity: 0.55; transform: translateX(-48px) scale(0.93); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  .cover-slot.curr.anim-next { animation: slideFromRight 0.24s var(--ease); }
+  .cover-slot.curr.anim-prev { animation: slideFromLeft 0.24s var(--ease); }
+
+  .art-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+    transition: filter 0.22s ease;
+  }
+
+  /* МЕТАДАННЫЕ + КНОПКИ */
+  .track-meta {
+    padding: 10px 22px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .meta-text {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 0;
+  }
+  .meta-text:active { opacity: 0.72; }
+
+  .track-title {
+    font-size: clamp(18px, 2.7dvh, 22px);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.3px;
+  }
+
+  .track-artist {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .meta-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .subtle-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.14s var(--ease), color 0.16s ease;
+  }
+  .subtle-icon-btn:active { transform: scale(0.84); color: var(--fg); }
+  .subtle-icon-btn svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .heart-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.16s var(--ease), color 0.18s ease;
+  }
+  .heart-btn:active { transform: scale(0.78); }
+  .heart-btn.liked {
+    color: var(--fg);
+    animation: heartPop 0.26s var(--ease);
+  }
+  @keyframes heartPop {
+    0% { transform: scale(0.82); }
+    50% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .heart-btn svg {
+    width: 23px;
+    height: 23px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+  }
+  .heart-btn.liked svg { fill: var(--fg); }
+
+  /* ВОЛНА ПЕРЕМОТКИ */
+  .waveform-wrap {
+    padding: 6px 22px 2px;
+    flex-shrink: 0;
+  }
+
+  .waveform {
+    height: clamp(36px, 5.6dvh, 48px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3px;
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  .wf-bar {
+    flex: 1;
+    background: var(--dim);
+    border-radius: 4px;
+    transition: background 0.08s ease, transform 0.12s var(--ease);
+  }
+  .wf-bar.played { background: var(--fg); }
+  .wf-bar.head { transform: scaleY(1.12); }
+
+  .time-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin-top: 6px;
+  }
+
+  /* КОНТРОЛЫ */
+  .controls-area {
+    flex: 1;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 14px 22px 20px;
+  }
+
+  .transport {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: auto 0;
+  }
+
+  .t-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.14s var(--ease), color 0.16s ease;
+  }
+  .t-btn:active { transform: scale(0.84); }
+  .t-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+  }
+  .t-btn.stroke-only svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    width: 20px;
+    height: 20px;
+  }
+
+  .play-btn {
+    width: clamp(60px, 8.4dvh, 68px);
+    height: clamp(60px, 8.4dvh, 68px);
+    border-radius: 50%;
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.14s var(--ease);
+  }
+  .play-btn:active { transform: scale(0.9); }
+  .play-btn svg {
+    width: 26px;
+    height: 26px;
+    fill: var(--bg);
+  }
+
+  .bottom-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  .mini-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 100px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease;
+  }
+  .mini-pill:active { transform: scale(0.94); }
+  .mini-pill.muted { color: var(--muted); }
+  .mini-pill svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ЭКРАН 2: СВАЙПАЛКА */
+  .swipe-top-bar {
+    padding: 2px 18px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .deck-stage {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 22px 12px;
+    overflow: hidden;
+  }
+
+  .right-drop-rail {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    z-index: 15;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(108px);
+    transition: transform 0.18s var(--ease), opacity 0.16s ease;
+  }
+  .right-drop-rail.visible {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .drop-vibe-slot {
+    width: 88px;
+    flex: 0 1 64px;
+    min-height: 30px;
+    padding: 4px 7px;
+    border-radius: 13px;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    font-size: 11px;
+    font-weight: 700;
+    transition: transform 0.14s var(--ease), background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .drop-vibe-slot .slot-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .drop-vibe-slot .slot-count {
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.72;
+    font-variant-numeric: tabular-nums;
+  }
+  .drop-vibe-slot.highlight {
+    transform: translateX(-14px) scale(1.07);
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+
+  .swipe-card {
+    position: absolute;
+    width: calc(100% - 44px);
+    max-width: 348px;
+    height: min(444px, calc(100% - 14px));
+    background: var(--surface);
+    border: 1px solid #2e2e2e;
+    border-radius: 24px;
+    padding: 13px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    touch-action: none;
+    will-change: transform, opacity;
+  }
+  .swipe-card.behind {
+    transform: scale(0.92) translateY(16px);
+    opacity: 0.38;
+    pointer-events: none;
+    z-index: 1;
+    transition: transform 0.24s var(--ease), opacity 0.24s ease;
+  }
+  .swipe-card.top { z-index: 5; }
+
+  .card-art-wrap {
+    width: 100%;
+    flex: 1;
+    min-height: 150px;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid #262626;
+  }
+
+  .card-preview-badge {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    height: 30px;
+    padding: 0 11px;
+    border-radius: 100px;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    z-index: 4;
+    pointer-events: none;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+  .card-preview-badge.playing {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+  .card-preview-badge svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+  }
+
+  .card-scrubber {
+    width: 100%;
+    padding: 10px 2px 4px;
+    cursor: pointer;
+    touch-action: none;
+    flex-shrink: 0;
+  }
+  .card-scrub-track {
+    width: 100%;
+    height: 5px;
+    border-radius: 4px;
+    background: #242424;
+    overflow: hidden;
+  }
+  .card-scrub-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--fg);
+    border-radius: 4px;
+    transition: width 0.12s linear;
+  }
+
+  .swipe-stamp {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.74);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+    z-index: 6;
+  }
+  .stamp-label {
+    padding: 8px 18px;
+    border: 2px solid var(--fg);
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--fg);
+    background: #000000;
+    max-width: 85%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-info {
+    padding: 4px 4px 2px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-artist {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-vibe-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px;
+  }
+  .card-vibe-chips::-webkit-scrollbar { display: none; }
+  .card-vibe-chips.centered { justify-content: center; }
+
+  .cv-chip {
+    padding: 5px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border-hi);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
+  }
+  .cv-chip:active { transform: scale(0.92); }
+  .cv-chip.on {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+  .cv-chip.add-chip {
+    border-style: dashed;
+    color: var(--fg);
+  }
+
+  .swipe-legend {
+    padding: 0 18px 18px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .leg-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 4px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease;
+  }
+  .leg-btn:active {
+    background: var(--fg);
+    color: var(--bg);
+    transform: scale(0.94);
+  }
+  .leg-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .quick-vibe-pop {
+    position: absolute;
+    right: 18px;
+    bottom: 78px;
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 16px;
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 156px;
+    max-height: 230px;
+    overflow-y: auto;
+    z-index: 30;
+  }
+  .quick-vibe-pop.open { display: flex; }
+  .qvp-item {
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .qvp-item:active {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* ШТОРКА ОЧЕРЕДИ / СКРЫТЫХ / БАЗЫ */
+  .sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.82);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .sheet-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .queue-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 78%;
+    background: var(--surface);
+    border-top: 1px solid #303030;
+    border-radius: 24px 24px 0 0;
+    z-index: 50;
+    transform: translateY(100%);
+    transition: transform 0.26s var(--ease);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .queue-sheet.open { transform: translateY(0); }
+
+  .sheet-header {
+    padding: 14px 16px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .sheet-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sheet-tabs::-webkit-scrollbar { display: none; }
+
+  .sheet-tab {
+    padding: 6px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+  }
+  .sheet-tab.active {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+
+  .sheet-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px 14px 24px;
+  }
+
+  .q-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s ease;
+  }
+  .q-item:active { background: var(--surface-2); }
+  .q-item.current {
+    background: var(--surface-2);
+    border-color: #2e2e2e;
+  }
+  .q-item.past { opacity: 0.42; }
+
+  .q-idx {
+    font-size: 11px;
+    color: var(--muted);
+    width: 24px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .q-thumb {
+    width: 42px;
+    height: 42px;
+    border-radius: 9px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid #282828;
+    background: var(--surface-2);
+  }
+  .q-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .q-title {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .q-artist {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  .small-action-btn {
+    padding: 6px 11px;
+    border-radius: 100px;
+    border: 1px solid var(--border-hi);
+    background: var(--surface-2);
+    color: var(--fg);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s ease, color 0.12s ease, transform 0.1s ease;
+  }
+  .small-action-btn:active {
+    background: var(--fg);
+    color: var(--bg);
+    transform: scale(0.94);
+  }
+  .small-action-btn.danger-confirm {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+
+  /* БАЗА */
+  .data-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px 4px;
+  }
+  .data-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+  }
+  .data-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .data-card p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .data-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .setting-label {
+    font-size: 12px;
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .toggle-pill {
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border-hi);
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .toggle-pill.on {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+
+  /* ОВЕРЛЕЙ ПОИСКА */
+  .search-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    z-index: 55;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+    transition: opacity 0.18s ease, transform 0.2s var(--ease);
+  }
+  .search-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .search-bar {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .search-input {
+    flex: 1;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid var(--border-hi);
+    background: var(--surface-2);
+    color: var(--fg);
+    padding: 0 13px;
+    font-size: 14px;
+    outline: none;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  .search-input:focus { border-color: var(--fg); }
+  .search-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 14px 24px;
+  }
+
+  /* МОДАЛКИ */
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 65;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.16s ease;
+  }
+  .modal-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal-box {
+    width: 100%;
+    max-width: 356px;
+    max-height: 82dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid #333333;
+    border-radius: 22px;
+    padding: 18px;
+    transform: scale(0.95);
+    transition: transform 0.2s var(--ease);
+  }
+  .modal-backdrop.open .modal-box { transform: scale(1); }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  .modal-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .field-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    display: block;
+  }
+  .modal-input {
+    width: 100%;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--border-hi);
+    background: var(--surface-2);
+    color: var(--fg);
+    padding: 0 11px;
+    font-size: 13px;
+    outline: none;
+    margin-bottom: 10px;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  .modal-input:focus { border-color: var(--fg); }
+  .real-file-box {
+    font-size: 11px;
+    color: var(--muted);
+    background: #050505;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    word-break: break-all;
+    margin-bottom: 14px;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .btn-primary {
+    padding: 9px 18px;
+    border-radius: 100px;
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .btn-primary:active { transform: scale(0.95); }
+
+  /* МЕНЕДЖЕР НАСТРОЕНИЙ */
+  .vibe-create-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  .vibe-create-row .modal-input {
+    margin-bottom: 0;
+    flex: 1;
+  }
+  .vibes-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding-right: 2px;
+  }
+  .vibe-manage-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .vibe-manage-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .vibe-manage-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vibe-manage-count {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .vibe-edit-input {
+    width: 100%;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--fg);
+    background: #000000;
+    color: var(--fg);
+    padding: 0 8px;
+    font-size: 13px;
+    outline: none;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* ТОСТ ВНИЗУ (НЕ ПЕРЕКРЫВАЕТ ВКЛАДКИ) */
+  .toast {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%) translateY(14px);
+    background: var(--fg);
+    color: var(--bg);
+    padding: 8px 15px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.2s var(--ease);
+    z-index: 90;
+    max-width: calc(100% - 32px);
+    border: 1px solid #000000;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.has-action.show {
+    pointer-events: auto;
+  }
+  .toast-msg {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .toast-act {
+    background: #000000;
+    color: #ffffff;
+    border: none;
+    border-radius: 100px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="toast" id="toast">
+    <span class="toast-msg" id="toast-msg">Готово</span>
+    <button class="toast-act" id="toast-act" style="display:none"></button>
+  </div>
+
+  <!-- ШАПКА -->
+  <header>
+    <div class="brand">shard</div>
+    <div class="header-actions">
+      <button class="icon-btn" id="search-btn" onclick="toggleSearch(true)" title="Поиск треков">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="icon-btn" id="rescan-btn" onclick="scanDeviceLibrary(true)" title="Пересканировать устройство">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+      <button class="icon-btn" id="bw-btn" onclick="toggleBW()" title="ЧБ-обложки">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 2 ЭКРАНА -->
+  <div class="nav-tabs">
+    <div class="nav-tab active" id="tab-flow" onclick="switchTab('flow')">
+      <span>Поток</span>
+    </div>
+    <div class="nav-tab" id="tab-swipe" onclick="switchTab('swipe')">
+      <span>Свайпалка</span>
+      <span class="nav-badge" id="unsorted-badge">0</span>
+    </div>
+  </div>
+
+  <!-- ЭКРАН ДОСТУПА К ФАЙЛАМ -->
+  <div class="gate-screen" id="gate-screen">
+    <div class="gate-title" id="gate-title">Нужен доступ к аудио</div>
+    <div class="gate-desc" id="gate-desc">shard сам подтянет музыку с телефона, не меняя оригинальные файлы.</div>
+    <button class="btn-primary" id="gate-btn" onclick="handleGateAction()">Открыть доступ</button>
+  </div>
+
+  <!-- ЭКРАН 1: ПОТОК -->
+  <div class="view active" id="view-flow">
+    <div class="vibes-bar" id="vibes-bar"></div>
+
+    <div class="carousel-stage" id="carousel-stage">
+      <div class="cover-slot prev" id="slot-prev">
+        <img class="art-img" id="img-prev" alt="">
+      </div>
+      <div class="cover-slot curr" id="slot-curr">
+        <img class="art-img" id="img-curr" alt="">
+      </div>
+      <div class="cover-slot next" id="slot-next">
+        <img class="art-img" id="img-next" alt="">
+      </div>
+    </div>
+
+    <div class="track-meta">
+      <div class="meta-text" id="meta-text">
+        <div class="track-title" id="track-title">Сканирование...</div>
+        <div class="track-artist" id="track-artist">Ищем треки на устройстве</div>
+      </div>
+      <div class="meta-actions">
+        <button class="subtle-icon-btn" onclick="openRenameModal()" title="Переименовать локально">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="heart-btn" id="heart-btn" onclick="toggleLikeCurrent()" title="В любимое">
+          <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="waveform-wrap">
+      <div class="waveform" id="waveform"></div>
+      <div class="time-row">
+        <span id="time-curr">0:00</span>
+        <span id="time-dur">0:00</span>
+      </div>
+    </div>
+
+    <div class="controls-area">
+      <div class="transport">
+        <button class="t-btn stroke-only" onclick="reshuffleUpcoming()" title="Обновить будущий поток">
+          <svg viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+        </button>
+
+        <button class="t-btn" onclick="prevTrack()" title="Назад">
+          <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+        </button>
+
+        <button class="play-btn" id="play-btn" onclick="togglePlay()" title="Старт / Пауза">
+          <svg id="play-icon" viewBox="0 0 24 24"><polygon points="8,5 20,12 8,19"/></svg>
+        </button>
+
+        <button class="t-btn" onclick="nextTrack(true)" title="Вперёд">
+          <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        </button>
+
+        <button class="t-btn stroke-only" onclick="toggleQueueSheet(true)" title="Очередь и база">
+          <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="bottom-actions">
+        <button class="mini-pill muted" onclick="hideCurrentTrack()">
+          <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          <span>Скрыть</span>
+        </button>
+        <button class="mini-pill" onclick="toggleQueueSheet(true)">
+          <span id="queue-pos-label">0 / 0</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 2: СВАЙПАЛКА -->
+  <div class="view" id="view-swipe">
+    <div class="swipe-top-bar">
+      <button class="mini-pill" onclick="openVibesModal()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Настроения</span>
+      </button>
+      <button class="icon-btn" id="undo-btn" onclick="undoLastSwipe()" title="Отменить свайп" style="width:34px; height:34px;">
+        <svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+      </button>
+    </div>
+
+    <div class="deck-stage" id="deck-stage">
+      <div class="right-drop-rail" id="right-drop-rail"></div>
+    </div>
+
+    <div class="quick-vibe-pop" id="quick-vibe-pop"></div>
+
+    <div class="swipe-legend">
+      <button class="leg-btn" onclick="triggerSwipeAction('left')">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>В поток</span>
+      </button>
+      <button class="leg-btn" onclick="triggerSwipeAction('down')">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        <span>Скрыть</span>
+      </button>
+      <button class="leg-btn" onclick="triggerSwipeAction('up')">
+        <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+        <span>Любимое</span>
+      </button>
+      <button class="leg-btn" id="leg-right-btn" onclick="handleRightLegendClick(event)">
+        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        <span id="leg-right-label">В вайб</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ШТОРКА ОЧЕРЕДИ / СКРЫТЫХ / БАЗЫ -->
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="toggleQueueSheet(false)"></div>
+  <div class="queue-sheet" id="queue-sheet">
+    <div class="sheet-header">
+      <div class="sheet-tabs">
+        <button class="sheet-tab active" id="stab-queue" onclick="switchSheetTab('queue')">Очередь</button>
+        <button class="sheet-tab" id="stab-hidden" onclick="switchSheetTab('hidden')">Скрытые (0)</button>
+        <button class="sheet-tab" id="stab-data" onclick="switchSheetTab('data')">База</button>
+      </div>
+      <button class="icon-btn" onclick="toggleQueueSheet(false)" style="width:32px; height:32px;">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body" id="sheet-content"></div>
+  </div>
+
+  <!-- ОВЕРЛЕЙ ПОИСКА -->
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-bar">
+      <input type="text" class="search-input" id="search-input" placeholder="Название, артист или имя файла..." autocomplete="off">
+      <button class="icon-btn" onclick="toggleSearch(false)" style="width:36px; height:36px;">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="search-results" id="search-results"></div>
+  </div>
+
+  <!-- МОДАЛКА ПЕРЕИМЕНОВАНИЯ -->
+  <div class="modal-backdrop" id="rename-backdrop" onclick="closeRenameModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">Локальное название</div>
+      </div>
+      <label class="field-label">Название в shard</label>
+      <input type="text" class="modal-input" id="rename-title-input">
+      <label class="field-label">Исполнитель</label>
+      <input type="text" class="modal-input" id="rename-artist-input">
+      <label class="field-label">Оригинальный файл (на диске не меняется)</label>
+      <div class="real-file-box" id="rename-real-file"></div>
+      <div class="modal-actions">
+        <button class="mini-pill" onclick="closeRenameModal()">Отмена</button>
+        <button class="btn-primary" onclick="saveRenameModal()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА НАСТРОЕНИЙ -->
+  <div class="modal-backdrop" id="vibes-backdrop" onclick="closeVibesModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">Настроения</div>
+        <button class="icon-btn" onclick="closeVibesModal()" style="width:30px; height:30px;">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="vibe-create-row">
+        <input type="text" class="modal-input" id="new-vibe-input" placeholder="Новое настроение..." maxlength="24" autocomplete="off">
+        <button class="btn-primary" onclick="createCustomVibe()">Добавить</button>
+      </div>
+      <div class="vibes-list" id="vibes-manage-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'shard_app_state_v1';
+  const POS_STORAGE_KEY = 'shard_app_pos_v1';
+  const EDGE_SAFE_PX = 24;
+  const MAX_UNDO = 30;
+  const IS_NATIVE = Boolean(window.ShardNative);
+
+  const SYSTEM_VIBES_HEAD = [
+    { id: 'all', name: 'Поток', system: true },
+    { id: 'fav', name: 'Любимое', system: true }
+  ];
+  const SYSTEM_VIBES_TAIL = [
+    { id: 'fresh', name: 'Свежее', system: true },
+    { id: 'forgotten', name: 'Забытое', system: true }
+  ];
+  const DEFAULT_CUSTOM_VIBES = [
+    { id: 'energy', name: 'Бодрое' },
+    { id: 'chill', name: 'Чилл' },
+    { id: 'night', name: 'Ночь' }
+  ];
+
+  const ART_PALETTE = [
+    ['#261c3d', '#110c1c'],
+    ['#42141c', '#1a070b'],
+    ['#1b2838', '#0a1017'],
+    ['#15332b', '#071411'],
+    ['#3d2612', '#170e06'],
+    ['#252529', '#0f0f12'],
+    ['#3b1530', '#160712'],
+    ['#182d4d', '#08101f']
+  ];
+
+  let state = {
+    bwMode: false,
+    skipShortAudio: true,
+    activeTab: 'flow',
+    activeVibe: 'all',
+    customVibes: [...DEFAULT_CUSTOM_VIBES],
+    tracks: [],
+    queuesByVibe: {},
+    swipeDeckIds: [],
+    swipeHistory: []
+  };
+
+  let isPlaying = false;
+  let isScanning = false;
+  let isSwipeAnimating = false;
+  let activeSheetTab = 'queue';
+  let renamingTrackId = null;
+  let editingVibeId = null;
+  let confirmDeleteVibeId = null;
+  let lastRenderedWfTrackId = null;
+  let lastLoadedMediaId = null;
+  let gateMode = null;
+
+  let previewTrackId = null;
+  let previewPlaying = false;
+  let previewTime = 0;
+
+  const fallbackArtCache = {};
+  const missingNativeArt = new Set();
+  const wfCache = {};
+
+  function haptic(level = 1) {
+    if (IS_NATIVE) {
+      try { window.ShardNative.haptic(level); } catch (e) {}
+    } else if (navigator.vibrate) {
+      try { navigator.vibrate(level >= 2 ? 14 : 8); } catch (e) {}
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function decodeBase64Utf8(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  function hashString(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function getAllVibes() {
+    return [...SYSTEM_VIBES_HEAD, ...state.customVibes, ...SYSTEM_VIBES_TAIL];
+  }
+
+  function getVibeById(id) {
+    return getAllVibes().find(v => v.id === id) || null;
+  }
+
+  function getFallbackArt(track) {
+    if (!track) return '';
+    const key = `${track.id}_${track.artist || ''}`;
+    if (fallbackArtCache[key]) return fallbackArtCache[key];
+
+    const h = hashString(track.hash || track.id);
+    const pal = ART_PALETTE[h % ART_PALETTE.length];
+    const seed = (h % 97) + 1;
+    const label = escapeHtml((track.artist || track.title || 'SHARD').slice(0, 7).toUpperCase());
+    const cx1 = 95 + (seed * 37) % 210;
+    const cy1 = 95 + (seed * 53) % 210;
+    const r1 = 62 + (seed * 19) % 70;
+    const rx2 = 38 + (seed * 29) % 180;
+    const ry2 = 38 + (seed * 41) % 180;
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+      <rect width="400" height="400" fill="${pal[0]}"/>
+      <rect x="${rx2}" y="${ry2}" width="170" height="170" rx="28" fill="${pal[1]}"/>
+      <circle cx="${cx1}" cy="${cy1}" r="${r1}" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="6"/>
+      <line x1="36" y1="340" x2="364" y2="340" stroke="rgba(255,255,255,0.16)" stroke-width="3"/>
+      <text x="200" y="216" font-family="sans-serif" font-size="40" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="5">${label}</text>
+    </svg>`;
+    const uri = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    fallbackArtCache[key] = uri;
+    return uri;
+  }
+
+  function getTrackArtSrc(track) {
+    if (!track) return '';
+    if (IS_NATIVE && track.mediaId && !missingNativeArt.has(track.mediaId)) {
+      return `/art/${track.mediaId}`;
+    }
+    return getFallbackArt(track);
+  }
+
+  function setCoverImg(imgEl, track) {
+    if (!imgEl) return;
+    if (!track) {
+      imgEl.removeAttribute('src');
+      imgEl.onerror = null;
+      return;
+    }
+    const targetSrc = getTrackArtSrc(track);
+    if (imgEl.dataset.srcKey === targetSrc) return;
+    imgEl.dataset.srcKey = targetSrc;
+    imgEl.onerror = () => {
+      if (track.mediaId) missingNativeArt.add(track.mediaId);
+      const fb = getFallbackArt(track);
+      imgEl.onerror = null;
+      imgEl.dataset.srcKey = fb;
+      imgEl.src = fb;
+    };
+    imgEl.src = targetSrc;
+  }
+
+  function buildArtImgHtml(track) {
+    const src = getTrackArtSrc(track);
+    const mid = track.mediaId || 0;
+    return `<img class="art-img" src="${src}" data-tid="${escapeHtml(track.id)}" data-mid="${mid}" onerror="handleThumbArtError(this)" alt="">`;
+  }
+
+  window.handleThumbArtError = function(img) {
+    const mid = Number(img.dataset.mid || 0);
+    if (mid) missingNativeArt.add(mid);
+    const t = getTrack(img.dataset.tid);
+    img.onerror = null;
+    if (t) img.src = getFallbackArt(t);
+  };
+
+  function getTrackWf(track) {
+    if (!track) return [];
+    if (wfCache[track.id]) return wfCache[track.id];
+    const seed = (hashString(String(track.hash || track.id)) % 997) + 1;
+    const arr = Array.from({ length: 42 }, (_, b) =>
+      20 + Math.floor(Math.abs(Math.sin(seed * 0.73 + b * 0.47) * Math.cos(b * 0.19 + seed)) * 78)
+    );
+    wfCache[track.id] = arr;
+    return arr;
+  }
+
+  // Лечение CP1251 -> UTF-8
+  function fixMojibake(str) {
+    if (!str || /[\u0400-\u04FF]/.test(str)) return str || '';
+    const latinHigh = (str.match(/[\u00C0-\u00FF\u00A8\u00B8]/g) || []).length;
+    if (latinHigh < 2) return str;
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      if (c >= 0xC0 && c <= 0xFF) out += String.fromCharCode(c + 0x350);
+      else if (c === 0xA8) out += 'Ё';
+      else if (c === 0xB8) out += 'ё';
+      else out += str[i];
+    }
+    return out;
+  }
+
+  function cleanFilename(rawName) {
+    let s = fixMojibake(rawName || '');
+    s = s.replace(/\.[^/.]+$/, '');
+    s = s.replace(/^\d{1,3}[\s._-]+/, '');
+    s = s.replace(/[_]+/g, ' ');
+    s = s.replace(/[\(\[]\s*(official\s*(audio|video|lyric\s*video)?|lyrics?|hd|hq|320\s*kbps|256\s*kbps|128\s*kbps|mp3|flac|remastered(\s*\d{4})?|audio|muzmo|zaycev\.net)\s*[\)\]]/gi, '');
+    s = s.replace(/\s{2,}/g, ' ').trim();
+    const parts = s.split(/\s+[-–—]\s+/);
+    if (parts.length > 1) {
+      return {
+        artist: parts[0].trim() || 'Неизвестный артист',
+        title: parts.slice(1).join(' - ').trim() || s
+      };
+    }
+    return { artist: 'Неизвестный артист', title: s || 'Без названия' };
+  }
+
+  // --- Состояние и сохранение ---
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.tracks)) {
+          state = {
+            ...state,
+            ...parsed,
+            customVibes: Array.isArray(parsed.customVibes) ? parsed.customVibes : [...DEFAULT_CUSTOM_VIBES],
+            queuesByVibe: parsed.queuesByVibe || {},
+            swipeDeckIds: Array.isArray(parsed.swipeDeckIds) ? parsed.swipeDeckIds : [],
+            swipeHistory: Array.isArray(parsed.swipeHistory) ? parsed.swipeHistory : []
+          };
+          try {
+            const pos = JSON.parse(localStorage.getItem(POS_STORAGE_KEY) || 'null');
+            if (pos && pos.vibe && state.queuesByVibe[pos.vibe]) {
+              const q = state.queuesByVibe[pos.vibe];
+              if (q.ids[pos.index] === pos.trackId) {
+                q.index = pos.index;
+                q.time = pos.time || 0;
+              }
+            }
+          } catch (e) {}
+          if (!getVibeById(state.activeVibe)) state.activeVibe = 'all';
+        }
+      }
+    } catch (e) {}
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      savePlaybackPos();
+    } catch (e) {
+      showToast('Не удалось сохранить состояние');
+    }
+  }
+
+  function savePlaybackPos() {
+    try {
+      const q = getQueueObj();
+      const currId = q.ids[q.index] || null;
+      localStorage.setItem(POS_STORAGE_KEY, JSON.stringify({
+        vibe: state.activeVibe,
+        index: q.index,
+        trackId: currId,
+        time: Math.floor(q.time || 0)
+      }));
+    } catch (e) {}
+  }
+
+  function getTrack(id) {
+    return state.tracks.find(t => t.id === id);
+  }
+
+  function getActivePool(vibeId) {
+    const visible = state.tracks.filter(t => !t.hidden && t.present !== false);
+    if (vibeId === 'all') return visible;
+    if (vibeId === 'fav') return visible.filter(t => t.liked);
+    if (vibeId === 'fresh') {
+      const fresh = visible.filter(t => (t.playCount || 0) <= 1);
+      return fresh.length ? fresh : [...visible].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 15);
+    }
+    if (vibeId === 'forgotten') {
+      const now = Date.now();
+      const oldGood = visible.filter(t => (t.score ?? 50) >= 50 && (t.playCount || 0) > 0 && (now - (t.lastPlayedAt || 0) > 600000));
+      if (oldGood.length) return oldGood;
+      return [...visible].sort((a, b) => (a.lastPlayedAt || 0) - (b.lastPlayedAt || 0)).slice(0, 15);
+    }
+    return visible.filter(t => t.vibes.includes(vibeId));
+  }
+
+  function getQueueObj(vibeId = state.activeVibe) {
+    if (!state.queuesByVibe[vibeId]) {
+      state.queuesByVibe[vibeId] = { ids: [], index: 0, time: 0 };
+    }
+    return state.queuesByVibe[vibeId];
+  }
+
+  function getTimeBucket() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return 'morning';
+    if (h >= 12 && h < 19) return 'day';
+    return 'night';
+  }
+
+  function adjustScore(track, delta, affectTimeOfDay = true) {
+    if (!track) return;
+    track.score = Math.max(0, Math.min(100, Math.round((track.score ?? 50) + delta)));
+    if (affectTimeOfDay) {
+      if (!track.todScore) track.todScore = { morning: 0, day: 0, night: 0 };
+      const b = getTimeBucket();
+      track.todScore[b] = Math.max(-15, Math.min(15, (track.todScore[b] || 0) + Math.sign(delta) * 2));
+    }
+  }
+
+  // Умная сборка очереди: 65 / 20 / 15 + время суток + кулдаун + разнесение артистов
+  function buildSmartOrder(pool) {
+    if (pool.length <= 2) return pool.map(t => t.id);
+    const now = Date.now();
+    const bucket = getTimeBucket();
+
+    const effectiveWeight = t => {
+      const tod = (t.todScore && t.todScore[bucket]) ? t.todScore[bucket] : 0;
+      const sincePlay = now - (t.lastPlayedAt || 0);
+      const cooldown = t.lastPlayedAt && sincePlay < 1800000 ? 28 : 0;
+      return (t.score ?? 50) + tod * 1.8 - cooldown + Math.random() * 14;
+    };
+
+    const byWeight = [...pool].sort((a, b) => effectiveWeight(b) - effectiveWeight(a));
+    const forgottenPool = pool
+      .filter(t => (t.score ?? 50) >= 52 && (!t.lastPlayedAt || now - t.lastPlayedAt > 3600000))
+      .sort((a, b) => (a.lastPlayedAt || 0) - (b.lastPlayedAt || 0));
+    const freshPool = pool
+      .filter(t => (t.playCount || 0) <= 1)
+      .sort(() => Math.random() - 0.5);
+
+    const used = new Set();
+    const picked = [];
+    const takeFrom = list => {
+      for (const item of list) {
+        if (!used.has(item.id)) {
+          used.add(item.id);
+          return item;
+        }
+      }
+      return null;
+    };
+
+    while (picked.length < pool.length) {
+      const roll = Math.random();
+      let candidate = null;
+      if (roll < 0.65) candidate = takeFrom(byWeight);
+      else if (roll < 0.85) candidate = takeFrom(forgottenPool) || takeFrom(byWeight);
+      else candidate = takeFrom(freshPool) || takeFrom(byWeight);
+      if (!candidate) candidate = takeFrom(byWeight);
+      if (!candidate) break;
+      picked.push(candidate);
+    }
+
+    for (let i = 1; i < picked.length - 1; i++) {
+      if (picked[i].artist === picked[i - 1].artist) {
+        const swapIdx = picked.findIndex((t, idx) => idx > i && t.artist !== picked[i - 1].artist);
+        if (swapIdx !== -1) {
+          const tmp = picked[i];
+          picked[i] = picked[swapIdx];
+          picked[swapIdx] = tmp;
+        }
+      }
+    }
+    return picked.map(t => t.id);
+  }
+
+  function buildQueueForVibe(vibeId) {
+    const pool = getActivePool(vibeId);
+    state.queuesByVibe[vibeId] = {
+      ids: buildSmartOrder(pool),
+      index: 0,
+      time: 0
+    };
+  }
+
+  function syncVibeQueue(vibeId) {
+    const pool = getActivePool(vibeId);
+    const validSet = new Set(pool.map(t => t.id));
+    const q = getQueueObj(vibeId);
+
+    if (!q.ids.length) {
+      buildQueueForVibe(vibeId);
+      return;
+    }
+
+    const currId = q.ids[q.index];
+    const filtered = q.ids.filter(id => validSet.has(id));
+    const existingSet = new Set(filtered);
+    const missing = buildSmartOrder(pool.filter(t => !existingSet.has(t.id)));
+
+    q.ids = [...filtered, ...missing];
+    if (!q.ids.length) {
+      q.index = 0;
+      q.time = 0;
+    } else {
+      const newIdx = q.ids.indexOf(currId);
+      if (newIdx !== -1) {
+        q.index = newIdx;
+      } else {
+        q.index = Math.min(q.index, q.ids.length - 1);
+        q.time = 0;
+      }
+    }
+  }
+
+  // --- Нативный сканер библиотеки ---
+  function showGate(mode, title, desc, btnText) {
+    gateMode = mode;
+    document.getElementById('gate-title').textContent = title;
+    document.getElementById('gate-desc').textContent = desc;
+    document.getElementById('gate-btn').textContent = btnText;
+    document.getElementById('gate-screen').classList.add('open');
+  }
+
+  function hideGate() {
+    gateMode = null;
+    document.getElementById('gate-screen').classList.remove('open');
+  }
+
+  function handleGateAction() {
+    if (gateMode === 'perm' && IS_NATIVE) {
+      window.ShardNative.requestPermission();
+    } else {
+      scanDeviceLibrary(true);
+    }
+  }
+
+  function scanDeviceLibrary(manual = false) {
+    if (!IS_NATIVE) {
+      showGate('empty', 'Запусти внутри APK', 'Нативный сканер MediaStore и плеер работают в собранном Android-приложении.', 'Проверить ещё раз');
+      return;
+    }
+    if (!window.ShardNative.hasPermission()) {
+      showGate('perm', 'Нужен доступ к аудио', 'Разреши чтение музыки на устройстве, чтобы shard собрал твою библиотеку.', 'Открыть доступ');
+      return;
+    }
+    if (isScanning) return;
+    isScanning = true;
+    document.getElementById('rescan-btn').classList.add('spinning');
+    window.ShardNative.scanLibrary(state.skipShortAudio ? 30 : 1);
+    if (manual) haptic(1);
+  }
+
+  window.onShardPermissionResult = function(granted) {
+    if (granted) {
+      hideGate();
+      scanDeviceLibrary(false);
+    } else {
+      showGate('perm', 'Доступ не выдан', 'Без разрешения на аудио плеер не сможет увидеть файлы на устройстве.', 'Выдать доступ');
+    }
+  };
+
+  window.onShardLibraryScanned = function(b64) {
+    isScanning = false;
+    document.getElementById('rescan-btn').classList.remove('spinning');
+
+    let scanned = [];
+    try {
+      scanned = JSON.parse(decodeBase64Utf8(b64));
+    } catch (e) {
+      showToast('Ошибка разбора библиотеки');
+      return;
+    }
+
+    const prevPresentCount = state.tracks.filter(t => t.present !== false).length;
+    const byMediaId = new Map();
+    const byHash = new Map();
+
+    state.tracks.forEach(t => {
+      t.present = false;
+      if (t.mediaId) byMediaId.set(t.mediaId, t);
+      if (t.hash) byHash.set(t.hash, t);
+    });
+
+    let added = 0;
+    const validIds = new Set();
+
+    scanned.forEach(item => {
+      const cleanName = cleanFilename(item.realFilename);
+      const safeHash = `${item.size}_${item.duration}_${(item.realFilename || '').toLowerCase()}`;
+      let existing = byMediaId.get(item.mediaId) || byHash.get(safeHash);
+
+      if (existing) {
+        existing.mediaId = item.mediaId;
+        existing.duration = Math.max(1, item.duration || existing.duration);
+        existing.realFilename = item.realFilename || existing.realFilename;
+        existing.hash = safeHash;
+        existing.present = true;
+        validIds.add(existing.id);
+      } else {
+        const rawTitle = fixMojibake((item.title || '').trim());
+        const rawArtist = fixMojibake((item.artist || '').trim());
+        const useFilenameParse = !rawTitle || !rawArtist || rawTitle === item.realFilename;
+        const finalTitle = useFilenameParse ? cleanName.title : rawTitle;
+        const finalArtist = rawArtist || cleanName.artist;
+
+        const id = 'm_' + item.mediaId + '_' + (hashString(safeHash) % 9999);
+        const track = {
+          id,
+          mediaId: item.mediaId,
+          hash: safeHash,
+          title: finalTitle,
+          artist: finalArtist,
+          realFilename: item.realFilename,
+          duration: Math.max(1, item.duration || 1),
+          vibes: [],
+          liked: false,
+          hidden: false,
+          present: true,
+          score: 50,
+          playCount: 0,
+          lastPlayedAt: 0,
+          addedAt: item.addedAt || Date.now(),
+          todScore: { morning: 0, day: 0, night: 0 }
+        };
+        state.tracks.unshift(track);
+        state.swipeDeckIds.unshift(id);
+        validIds.add(id);
+        added++;
+      }
+    });
+
+    state.swipeDeckIds = state.swipeDeckIds.filter(id => {
+      const t = getTrack(id);
+      return t && !t.hidden && t.present !== false;
+    });
+
+    const visibleNow = getActivePool('all');
+    if (!visibleNow.length) {
+      pauseMainPlayer();
+      stopPreview();
+      showGate('empty', 'Музыка не найдена', 'На устройстве нет подходящих аудиофайлов. Попробуй отключить фильтр «<30с» или пересканировать.', 'Сканировать снова');
+      saveState();
+      renderAll();
+      return;
+    }
+
+    hideGate();
+    if (!getActivePool(state.activeVibe).length) state.activeVibe = 'all';
+    Object.keys(state.queuesByVibe).forEach(vid => syncVibeQueue(vid));
+    syncVibeQueue(state.activeVibe);
+
+    saveState();
+    renderAll();
+    syncNativeTrack(isPlaying);
+
+    if (added > 0 && prevPresentCount > 0) {
+      showToast(`Новых треков: ${added}`);
+    } else if (prevPresentCount === 0) {
+      showToast(`Найдено треков: ${visibleNow.length}`);
+    } else {
+      showToast(`Библиотека актуальна (${visibleNow.length})`);
+    }
+  };
+
+  // --- События от нативного плеера ---
+  let tickSaveCounter = 0;
+  window.onShardProgress = function(mode, posSec, durSec) {
+    if (mode === 'main') {
+      const curr = getCurrentTrack();
+      const q = getQueueObj();
+      if (!curr) return;
+      q.time = posSec;
+      if (durSec > 1) curr.duration = Math.floor(durSec);
+      updateWaveformProgress();
+      tickSaveCounter++;
+      if (tickSaveCounter >= 8) {
+        tickSaveCounter = 0;
+        savePlaybackPos();
+      }
+    } else if (mode === 'preview') {
+      previewTime = posSec;
+      updateCardPreviewUI();
+    }
+  };
+
+  window.onShardPlayStateChanged = function(playing) {
+    isPlaying = Boolean(playing);
+    updatePlayIcon();
+    updateWaveformProgress();
+    if (!isPlaying) savePlaybackPos();
+  };
+
+  window.onShardPreviewStateChanged = function(playing) {
+    previewPlaying = Boolean(playing);
+    updateCardPreviewUI();
+  };
+
+  window.onShardTrackEnded = function() {
+    nextTrack(false);
+  };
+
+  window.onShardToast = function(msg) {
+    showToast(msg);
+  };
+
+  window.onShardBackupImported = function(b64) {
+    try {
+      const parsed = JSON.parse(decodeBase64Utf8(b64));
+      if (!parsed || !Array.isArray(parsed.tracks)) {
+        showToast('Неверный формат бэкапа');
+        return;
+      }
+      state = {
+        ...state,
+        ...parsed,
+        customVibes: Array.isArray(parsed.customVibes) ? parsed.customVibes : [...DEFAULT_CUSTOM_VIBES],
+        queuesByVibe: parsed.queuesByVibe || {},
+        swipeDeckIds: Array.isArray(parsed.swipeDeckIds) ? parsed.swipeDeckIds : [],
+        swipeHistory: []
+      };
+      if (!getVibeById(state.activeVibe)) state.activeVibe = 'all';
+      saveState();
+      renderAll();
+      renderSheetContent();
+      showToast('База восстановлена, сверяем файлы...');
+      scanDeviceLibrary(false);
+    } catch (e) {
+      showToast('Ошибка чтения JSON');
+    }
+  };
+
+  window.handleAndroidBack = function() {
+    if (document.getElementById('rename-backdrop').classList.contains('open')) {
+      closeRenameModal();
+      return true;
+    }
+    if (document.getElementById('vibes-backdrop').classList.contains('open')) {
+      closeVibesModal();
+      return true;
+    }
+    if (document.getElementById('search-overlay').classList.contains('open')) {
+      toggleSearch(false);
+      return true;
+    }
+    if (document.getElementById('queue-sheet').classList.contains('open')) {
+      toggleQueueSheet(false);
+      return true;
+    }
+    if (document.getElementById('quick-vibe-pop').classList.contains('open')) {
+      closeQuickVibePop();
+      return true;
+    }
+    if (state.activeTab === 'swipe') {
+      switchTab('flow');
+      return true;
+    }
+    return false;
+  };
+
+  // --- Управление плеером ---
+  function getCurrentTrack() {
+    const q = getQueueObj();
+    if (!q.ids.length) return null;
+    return getTrack(q.ids[q.index]);
+  }
+
+  function syncNativeTrack(autoPlay) {
+    const curr = getCurrentTrack();
+    const q = getQueueObj();
+    if (!curr || !curr.mediaId) {
+      pauseMainPlayer();
+      return;
+    }
+    lastLoadedMediaId = curr.mediaId;
+    if (IS_NATIVE) {
+      window.ShardNative.loadTrack(curr.mediaId, Math.floor((q.time || 0) * 1000), Boolean(autoPlay));
+    }
+  }
+
+  function pauseMainPlayer() {
+    isPlaying = false;
+    if (IS_NATIVE) window.ShardNative.setPlaying(false);
+    updatePlayIcon();
+    savePlaybackPos();
+  }
+
+  function togglePlay() {
+    const curr = getCurrentTrack();
+    if (!curr) return;
+    if (!isPlaying) stopPreview();
+    isPlaying = !isPlaying;
+    if (IS_NATIVE) {
+      if (lastLoadedMediaId !== curr.mediaId) {
+        syncNativeTrack(isPlaying);
+      } else {
+        window.ShardNative.setPlaying(isPlaying);
+      }
+    }
+    updatePlayIcon();
+    haptic(1);
+  }
+
+  function reshuffleUpcoming() {
+    const q = getQueueObj();
+    if (!q.ids.length) return;
+    const locked = q.ids.slice(0, q.index + 1);
+    const lockedSet = new Set(locked);
+    const remainingPool = getActivePool(state.activeVibe).filter(t => !lockedSet.has(t.id));
+    q.ids = [...locked, ...buildSmartOrder(remainingPool)];
+    saveState();
+    renderFlow();
+    haptic(2);
+    showToast('Будущий поток обновлён');
+  }
+
+  function triggerCarouselAnim(dir) {
+    const slot = document.getElementById('slot-curr');
+    slot.classList.remove('anim-next', 'anim-prev');
+    void slot.offsetWidth;
+    slot.classList.add(dir === 'next' ? 'anim-next' : 'anim-prev');
+  }
+
+  function nextTrack(isManualSkip = false, skipAnim = false) {
+    const q = getQueueObj();
+    if (!q.ids.length) return;
+    const curr = getCurrentTrack();
+
+    if (curr) {
+      if (isManualSkip) {
+        const ratio = (q.time || 0) / (curr.duration || 1);
+        if ((q.time || 0) < 15) adjustScore(curr, -8);
+        else if (ratio < 0.6) adjustScore(curr, -1, false);
+        else if (ratio >= 0.75) {
+          adjustScore(curr, 5);
+          curr.playCount = (curr.playCount || 0) + 1;
+          curr.lastPlayedAt = Date.now();
+        }
+      } else {
+        adjustScore(curr, 6);
+        curr.playCount = (curr.playCount || 0) + 1;
+        curr.lastPlayedAt = Date.now();
+      }
+    }
+
+    q.index = (q.index < q.ids.length - 1) ? q.index + 1 : 0;
+    q.time = 0;
+    saveState();
+    syncNativeTrack(isPlaying);
+    renderFlow();
+    if (!skipAnim) triggerCarouselAnim('next');
+  }
+
+  function prevTrack(skipAnim = false) {
+    const q = getQueueObj();
+    if (!q.ids.length) return;
+    const curr = getCurrentTrack();
+
+    if ((q.time || 0) > 4) {
+      if (curr && q.time > 18) adjustScore(curr, 6);
+      q.time = 0;
+      if (IS_NATIVE) window.ShardNative.seekTo(0);
+      savePlaybackPos();
+      updateWaveformProgress();
+      return;
+    }
+    if (q.index > 0) {
+      q.index--;
+      q.time = 0;
+      saveState();
+      syncNativeTrack(isPlaying);
+      renderFlow();
+      if (!skipAnim) triggerCarouselAnim('prev');
+    }
+  }
+
+  function jumpToQueueIndex(idx) {
+    const q = getQueueObj();
+    if (idx < 0 || idx >= q.ids.length) return;
+    q.index = idx;
+    q.time = 0;
+    stopPreview();
+    isPlaying = true;
+    saveState();
+    syncNativeTrack(true);
+    renderFlow();
+    renderSheetContent();
+  }
+
+  function toggleLikeCurrent() {
+    const curr = getCurrentTrack();
+    if (!curr) return;
+    curr.liked = !curr.liked;
+    adjustScore(curr, curr.liked ? 12 : -6);
+    if (state.queuesByVibe.fav) syncVibeQueue('fav');
+    saveState();
+    document.getElementById('heart-btn').classList.toggle('liked', curr.liked);
+    haptic(2);
+    showToast(curr.liked ? 'В Любимом' : 'Убрано из Любимого');
+  }
+
+  function hideTrackById(id) {
+    const track = getTrack(id);
+    if (!track) return;
+    track.hidden = true;
+    state.swipeDeckIds = state.swipeDeckIds.filter(x => x !== id);
+    if (previewTrackId === id) stopPreview();
+
+    let activeChanged = false;
+    Object.keys(state.queuesByVibe).forEach(vibeId => {
+      const q = state.queuesByVibe[vibeId];
+      const idx = q.ids.indexOf(id);
+      if (idx !== -1) {
+        q.ids.splice(idx, 1);
+        if (idx < q.index) q.index--;
+        else if (idx === q.index) {
+          q.time = 0;
+          if (q.index >= q.ids.length) q.index = Math.max(0, q.ids.length - 1);
+          if (vibeId === state.activeVibe) activeChanged = true;
+        }
+      }
+    });
+
+    if (activeChanged) {
+      if (!getQueueObj().ids.length) pauseMainPlayer();
+      else syncNativeTrack(isPlaying);
+    }
+    saveState();
+  }
+
+  function unhideTrackById(id) {
+    const track = getTrack(id);
+    if (!track) return;
+    track.hidden = false;
+    if (track.present !== false && !state.swipeDeckIds.includes(id)) {
+      state.swipeDeckIds.unshift(id);
+    }
+    Object.keys(state.queuesByVibe).forEach(vibeId => syncVibeQueue(vibeId));
+    saveState();
+    renderAll();
+    renderSheetContent();
+    haptic(1);
+    showToast('Трек возвращён');
+  }
+
+  function hideCurrentTrack() {
+    const curr = getCurrentTrack();
+    if (!curr) return;
+    const hiddenId = curr.id;
+    hideTrackById(hiddenId);
+    renderAll();
+    haptic(2);
+    showToast('Трек скрыт', 'Вернуть', () => unhideTrackById(hiddenId));
+  }
+
+  // --- Навигация и настройки ---
+  function switchTab(tab, skipSave = false) {
+    closeQuickVibePop();
+    state.activeTab = tab;
+    document.getElementById('tab-flow').classList.toggle('active', tab === 'flow');
+    document.getElementById('tab-swipe').classList.toggle('active', tab === 'swipe');
+    document.getElementById('view-flow').classList.toggle('active', tab === 'flow');
+    document.getElementById('view-swipe').classList.toggle('active', tab === 'swipe');
+
+    if (tab === 'swipe') {
+      pauseMainPlayer();
+      renderSwipeDeck();
+      if (state.swipeDeckIds.length > 0) {
+        startCardPreview(state.swipeDeckIds[0]);
+      }
+    } else {
+      stopPreview();
+      renderFlow();
+    }
+    if (!skipSave) saveState();
+  }
+
+  function toggleBW() {
+    state.bwMode = !state.bwMode;
+    document.body.classList.toggle('bw-mode', state.bwMode);
+    document.getElementById('bw-btn').classList.toggle('active', state.bwMode);
+    saveState();
+    haptic(1);
+    showToast(state.bwMode ? 'ЧБ обложки: ВКЛ' : 'ЧБ обложки: ВЫКЛ');
+  }
+
+  function selectVibe(vibeId) {
+    if (state.activeVibe === vibeId) return;
+    const pool = getActivePool(vibeId);
+    if (!pool.length) {
+      showToast('Здесь пока пусто — добавь треки в свайпалке');
+      return;
+    }
+    state.activeVibe = vibeId;
+    syncVibeQueue(vibeId);
+    saveState();
+    syncNativeTrack(isPlaying);
+    renderFlow();
+    haptic(1);
+  }
+
+  function toggleSkipShort() {
+    state.skipShortAudio = !state.skipShortAudio;
+    saveState();
+    renderSheetContent();
+    scanDeviceLibrary(true);
+  }
+
+  // --- Переименование трека ---
+  (function initRenameGesture() {
+    const el = document.getElementById('meta-text');
+    let timer = null;
+    let moved = false;
+    el.addEventListener('pointerdown', () => {
+      moved = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (!moved) openRenameModal(); }, 460);
+    });
+    el.addEventListener('pointermove', () => { moved = true; clearTimeout(timer); });
+    el.addEventListener('pointerup', () => clearTimeout(timer));
+    el.addEventListener('pointercancel', () => clearTimeout(timer));
+  })();
+
+  function openRenameModal() {
+    const curr = getCurrentTrack();
+    if (!curr) return;
+    renamingTrackId = curr.id;
+    document.getElementById('rename-title-input').value = curr.title;
+    document.getElementById('rename-artist-input').value = curr.artist;
+    document.getElementById('rename-real-file').textContent = curr.realFilename || '—';
+    document.getElementById('rename-backdrop').classList.add('open');
+    haptic(1);
+  }
+
+  function closeRenameModal() {
+    document.getElementById('rename-backdrop').classList.remove('open');
+    renamingTrackId = null;
+  }
+
+  function saveRenameModal() {
+    const track = getTrack(renamingTrackId);
+    if (!track) return;
+    const newTitle = document.getElementById('rename-title-input').value.trim();
+    const newArtist = document.getElementById('rename-artist-input').value.trim();
+    if (newTitle) track.title = newTitle;
+    if (newArtist) track.artist = newArtist;
+    saveState();
+    closeRenameModal();
+    renderAll();
+    showToast('Название обновлено');
+  }
+
+  // --- Менеджер настроений ---
+  function openVibesModal() {
+    closeQuickVibePop();
+    editingVibeId = null;
+    confirmDeleteVibeId = null;
+    document.getElementById('new-vibe-input').value = '';
+    renderVibesManageList();
+    document.getElementById('vibes-backdrop').classList.add('open');
+  }
+
+  function closeVibesModal() {
+    document.getElementById('vibes-backdrop').classList.remove('open');
+    editingVibeId = null;
+    confirmDeleteVibeId = null;
+  }
+
+  document.getElementById('new-vibe-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') createCustomVibe();
+  });
+
+  function createCustomVibe() {
+    const input = document.getElementById('new-vibe-input');
+    const name = input.value.trim();
+    if (!name) return;
+    if (getAllVibes().some(v => v.name.toLowerCase() === name.toLowerCase())) {
+      showToast('Такое настроение уже есть');
+      return;
+    }
+    const id = 'vibe_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
+    state.customVibes.push({ id, name });
+    input.value = '';
+    saveState();
+    renderVibesBar(true);
+    renderVibesManageList();
+    if (state.activeTab === 'swipe') renderSwipeDeck();
+    haptic(1);
+    showToast(`Добавлено «${name}»`);
+  }
+
+  function startRenameVibe(id) {
+    editingVibeId = id;
+    confirmDeleteVibeId = null;
+    renderVibesManageList();
+    const inp = document.getElementById('vibe-edit-' + id);
+    if (inp) { inp.focus(); inp.select(); }
+  }
+
+  function commitRenameVibe(id) {
+    const inp = document.getElementById('vibe-edit-' + id);
+    if (!inp) return;
+    const newName = inp.value.trim();
+    const vibe = state.customVibes.find(v => v.id === id);
+    if (!vibe) return;
+
+    if (newName && newName.toLowerCase() !== vibe.name.toLowerCase()) {
+      if (getAllVibes().some(v => v.id !== id && v.name.toLowerCase() === newName.toLowerCase())) {
+        showToast('Такое имя уже занято');
+        return;
+      }
+      vibe.name = newName;
+      saveState();
+      renderVibesBar(true);
+      if (state.activeTab === 'swipe') renderSwipeDeck();
+      showToast('Настроение переименовано');
+    }
+    editingVibeId = null;
+    renderVibesManageList();
+  }
+
+  function requestDeleteVibe(id) {
+    if (confirmDeleteVibeId !== id) {
+      confirmDeleteVibeId = id;
+      editingVibeId = null;
+      renderVibesManageList();
+      return;
+    }
+    const vibe = state.customVibes.find(v => v.id === id);
+    state.customVibes = state.customVibes.filter(v => v.id !== id);
+    state.tracks.forEach(t => { t.vibes = t.vibes.filter(v => v !== id); });
+    delete state.queuesByVibe[id];
+
+    if (state.activeVibe === id) {
+      state.activeVibe = 'all';
+      syncVibeQueue('all');
+      syncNativeTrack(isPlaying);
+    }
+
+    confirmDeleteVibeId = null;
+    saveState();
+    renderAll();
+    renderVibesManageList();
+    haptic(2);
+    showToast(vibe ? `Удалено «${vibe.name}»` : 'Настроение удалено');
+  }
+
+  function renderVibesManageList() {
+    const list = document.getElementById('vibes-manage-list');
+    list.innerHTML = '';
+
+    if (!state.customVibes.length) {
+      list.innerHTML = '<div style="text-align:center; color:var(--muted); padding:18px 0; font-size:12px;">Пользовательских настроений нет.<br>Добавь первое выше.</div>';
+      return;
+    }
+
+    state.customVibes.forEach(v => {
+      const count = getActivePool(v.id).length;
+      const row = document.createElement('div');
+      row.className = 'vibe-manage-row';
+
+      if (editingVibeId === v.id) {
+        row.innerHTML = `
+          <div class="vibe-manage-info">
+            <input type="text" class="vibe-edit-input" id="vibe-edit-${v.id}" value="${escapeHtml(v.name)}" maxlength="24">
+          </div>
+          <button class="small-action-btn" onclick="commitRenameVibe('${v.id}')">Ок</button>
+        `;
+        const inp = row.querySelector('input');
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter') commitRenameVibe(v.id);
+          if (e.key === 'Escape') { editingVibeId = null; renderVibesManageList(); }
+        });
+      } else {
+        const isConfirm = confirmDeleteVibeId === v.id;
+        row.innerHTML = `
+          <div class="vibe-manage-info">
+            <div class="vibe-manage-name">${escapeHtml(v.name)}</div>
+            <div class="vibe-manage-count">Треков: ${count}</div>
+          </div>
+          <button class="small-action-btn" onclick="startRenameVibe('${v.id}')">Изм.</button>
+          <button class="small-action-btn ${isConfirm ? 'danger-confirm' : ''}" onclick="requestDeleteVibe('${v.id}')">${isConfirm ? 'Точно?' : 'Удалить'}</button>
+        `;
+      }
+      list.appendChild(row);
+    });
+  }
+
+  // --- Рендер экрана «Поток» ---
+  function renderVibesBar(forceRebuild = false) {
+    const vibesBar = document.getElementById('vibes-bar');
+    const prevScroll = vibesBar.scrollLeft;
+
+    if (!forceRebuild && vibesBar.children.length === getAllVibes().length + 1) {
+      Array.from(vibesBar.children).forEach(el => {
+        if (el.dataset.vibeId) {
+          el.classList.toggle('active', el.dataset.vibeId === state.activeVibe);
+        }
+      });
+      return;
+    }
+
+    vibesBar.innerHTML = '';
+    getAllVibes().forEach(v => {
+      const pill = document.createElement('div');
+      pill.className = `vibe-pill ${state.activeVibe === v.id ? 'active' : ''}`;
+      pill.dataset.vibeId = v.id;
+      pill.textContent = v.name;
+      pill.onclick = () => selectVibe(v.id);
+      vibesBar.appendChild(pill);
+    });
+
+    const addPill = document.createElement('div');
+    addPill.className = 'vibe-pill add-pill';
+    addPill.textContent = '+ Настроение';
+    addPill.onclick = openVibesModal;
+    vibesBar.appendChild(addPill);
+    vibesBar.scrollLeft = prevScroll;
+  }
+
+  function renderFlow() {
+    renderVibesBar(false);
+
+    const q = getQueueObj();
+    const curr = getCurrentTrack();
+    const prev = q.index > 0 ? getTrack(q.ids[q.index - 1]) : null;
+    const next = q.index < q.ids.length - 1 ? getTrack(q.ids[q.index + 1]) : null;
+
+    setCoverImg(document.getElementById('img-curr'), curr);
+    setCoverImg(document.getElementById('img-prev'), prev);
+    setCoverImg(document.getElementById('img-next'), next);
+
+    document.getElementById('slot-prev').style.opacity = prev ? '0.34' : '0';
+    document.getElementById('slot-prev').style.pointerEvents = prev ? 'auto' : 'none';
+    document.getElementById('slot-next').style.opacity = next ? '0.34' : '0';
+    document.getElementById('slot-next').style.pointerEvents = next ? 'auto' : 'none';
+
+    document.getElementById('track-title').textContent = curr ? curr.title : 'Пусто';
+    document.getElementById('track-artist').textContent = curr ? curr.artist : 'Выбери другой вайб';
+    document.getElementById('heart-btn').classList.toggle('liked', !!(curr && curr.liked));
+    document.getElementById('queue-pos-label').textContent = `${q.ids.length ? q.index + 1 : 0} / ${q.ids.length}`;
+
+    const wfEl = document.getElementById('waveform');
+    const currId = curr ? curr.id : null;
+    if (lastRenderedWfTrackId !== currId) {
+      lastRenderedWfTrackId = currId;
+      wfEl.innerHTML = '';
+      if (curr) {
+        getTrackWf(curr).forEach((h, idx) => {
+          const bar = document.createElement('div');
+          bar.className = 'wf-bar';
+          bar.style.height = h + '%';
+          bar.dataset.idx = idx;
+          wfEl.appendChild(bar);
+        });
+      }
+    }
+
+    updateWaveformProgress();
+    updatePlayIcon();
+  }
+
+  // Свайп карусели с резиновым упором на краях
+  (function initCarouselSwipe() {
+    const stage = document.getElementById('carousel-stage');
+    const slotPrev = document.getElementById('slot-prev');
+    const slotCurr = document.getElementById('slot-curr');
+    const slotNext = document.getElementById('slot-next');
+    let startX = 0, dx = 0, dragging = false, tapTarget = null, animating = false;
+
+    function resetSlotsInstant() {
+      [slotPrev, slotCurr, slotNext].forEach(el => {
+        el.classList.add('no-anim');
+        el.style.transform = '';
+        el.style.opacity = '';
+      });
+      requestAnimationFrame(() => {
+        [slotPrev, slotCurr, slotNext].forEach(el => el.classList.remove('no-anim'));
+      });
+    }
+
+    stage.addEventListener('pointerdown', e => {
+      if (animating) return;
+      if (e.clientX < EDGE_SAFE_PX || e.clientX > window.innerWidth - EDGE_SAFE_PX) return;
+      dragging = true;
+      startX = e.clientX;
+      dx = 0;
+      tapTarget = e.target.closest('.cover-slot.prev') ? 'prev' : (e.target.closest('.cover-slot.next') ? 'next' : null);
+      stage.setPointerCapture(e.pointerId);
+      [slotPrev, slotCurr, slotNext].forEach(el => el.classList.add('no-anim'));
+    });
+
+    stage.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const q = getQueueObj();
+      const rawDx = e.clientX - startX;
+      const hasPrev = q.index > 0;
+      const hasNext = q.index < q.ids.length - 1;
+
+      if ((rawDx > 0 && !hasPrev) || (rawDx < 0 && !hasNext)) {
+        dx = rawDx * 0.24;
+      } else {
+        dx = rawDx;
+      }
+
+      const clamped = Math.max(-168, Math.min(168, dx));
+      const p = Math.abs(clamped) / 168;
+      slotCurr.style.transform = `translateX(${clamped}px) scale(${1 - p * 0.14})`;
+      slotCurr.style.opacity = String(1 - p * 0.66);
+      if (hasPrev) {
+        slotPrev.style.transform = `translateX(${-168 + clamped}px) scale(${0.86 + Math.max(0, clamped / 168) * 0.14})`;
+      }
+      if (hasNext) {
+        slotNext.style.transform = `translateX(${168 + clamped}px) scale(${0.86 + Math.max(0, -clamped / 168) * 0.14})`;
+      }
+    });
+
+    const finish = () => {
+      if (!dragging) return;
+      dragging = false;
+      [slotPrev, slotCurr, slotNext].forEach(el => el.classList.remove('no-anim'));
+
+      const q = getQueueObj();
+      const hasPrev = q.index > 0;
+      const hasNext = q.index < q.ids.length - 1;
+
+      if (Math.abs(dx) < 8 && tapTarget) {
+        [slotPrev, slotCurr, slotNext].forEach(el => { el.style.transform = ''; el.style.opacity = ''; });
+        if (tapTarget === 'prev' && hasPrev) prevTrack();
+        else if (tapTarget === 'next' && hasNext) nextTrack(true);
+        return;
+      }
+
+      if (dx < -54 && hasNext) {
+        animating = true;
+        slotCurr.style.transform = 'translateX(-168px) scale(0.86)';
+        slotCurr.style.opacity = '0.34';
+        slotNext.style.transform = 'translateX(0px) scale(1)';
+        slotNext.style.opacity = '1';
+        setTimeout(() => {
+          nextTrack(true, true);
+          resetSlotsInstant();
+          animating = false;
+        }, 200);
+      } else if (dx > 54 && hasPrev) {
+        animating = true;
+        slotCurr.style.transform = 'translateX(168px) scale(0.86)';
+        slotCurr.style.opacity = '0.34';
+        slotPrev.style.transform = 'translateX(0px) scale(1)';
+        slotPrev.style.opacity = '1';
+        setTimeout(() => {
+          prevTrack(true);
+          resetSlotsInstant();
+          animating = false;
+        }, 200);
+      } else {
+        [slotPrev, slotCurr, slotNext].forEach(el => {
+          el.style.transform = '';
+          el.style.opacity = '';
+        });
+      }
+    };
+
+    stage.addEventListener('pointerup', finish);
+    stage.addEventListener('pointercancel', finish);
+  })();
+
+  function updateWaveformProgress() {
+    const curr = getCurrentTrack();
+    const q = getQueueObj();
+    if (!curr) {
+      document.getElementById('time-curr').textContent = '0:00';
+      document.getElementById('time-dur').textContent = '0:00';
+      return;
+    }
+    const pct = Math.min(1, (q.time || 0) / (curr.duration || 1));
+    const bars = document.querySelectorAll('#waveform .wf-bar');
+    const playedIdx = Math.floor(pct * (bars.length - 1));
+    bars.forEach((b, i) => {
+      b.classList.toggle('played', i <= playedIdx);
+      b.classList.toggle('head', i === playedIdx && isPlaying);
+    });
+    document.getElementById('time-curr').textContent = fmtTime(q.time);
+    document.getElementById('time-dur').textContent = fmtTime(curr.duration);
+  }
+
+  // Перемотка по волне
+  const wfContainer = document.getElementById('waveform');
+  let scrubbing = false;
+  function scrubAt(clientX) {
+    const curr = getCurrentTrack();
+    const q = getQueueObj();
+    if (!curr) return;
+    const rect = wfContainer.getBoundingClientRect();
+    const rel = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    q.time = rel * curr.duration;
+    if (IS_NATIVE) window.ShardNative.seekTo(Math.floor(q.time * 1000));
+    updateWaveformProgress();
+  }
+  wfContainer.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    scrubbing = true;
+    wfContainer.setPointerCapture(e.pointerId);
+    scrubAt(e.clientX);
+  });
+  wfContainer.addEventListener('pointermove', e => { if (scrubbing) scrubAt(e.clientX); });
+  wfContainer.addEventListener('pointerup', () => { scrubbing = false; savePlaybackPos(); });
+  wfContainer.addEventListener('pointercancel', () => { scrubbing = false; });
+
+  function updatePlayIcon() {
+    document.getElementById('play-icon').innerHTML = isPlaying
+      ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>'
+      : '<polygon points="8,5 20,12 8,19"/>';
+  }
+
+  // --- Поиск ---
+  function toggleSearch(open) {
+    const overlay = document.getElementById('search-overlay');
+    overlay.classList.toggle('open', open);
+    if (open) {
+      const input = document.getElementById('search-input');
+      input.value = '';
+      renderSearchResults('');
+      setTimeout(() => input.focus(), 140);
+    }
+  }
+
+  document.getElementById('search-input').addEventListener('input', e => {
+    renderSearchResults(e.target.value);
+  });
+
+  function renderSearchResults(query) {
+    const qStr = query.trim().toLowerCase();
+    const list = document.getElementById('search-results');
+    list.innerHTML = '';
+
+    const matches = state.tracks.filter(t => {
+      if (t.hidden || t.present === false) return false;
+      if (!qStr) return true;
+      return (
+        t.title.toLowerCase().includes(qStr) ||
+        t.artist.toLowerCase().includes(qStr) ||
+        (t.realFilename || '').toLowerCase().includes(qStr)
+      );
+    }).slice(0, 60);
+
+    if (!matches.length) {
+      list.innerHTML = '<div style="text-align:center; color:var(--muted); padding:32px 0; font-size:13px;">Ничего не найдено</div>';
+      return;
+    }
+
+    matches.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'q-item';
+      item.innerHTML = `
+        <div class="q-thumb">${buildArtImgHtml(t)}</div>
+        <div class="q-info">
+          <div class="q-title">${escapeHtml(t.title)}</div>
+          <div class="q-artist">${escapeHtml(t.artist)}</div>
+        </div>
+        <button class="small-action-btn">+ След.</button>
+      `;
+      item.onclick = () => playTrackImmediately(t.id);
+      item.querySelector('.small-action-btn').onclick = e => {
+        e.stopPropagation();
+        insertPlayNext(t.id);
+      };
+      list.appendChild(item);
+    });
+  }
+
+  function insertPlayNext(trackId) {
+    const pool = getActivePool(state.activeVibe);
+    if (!pool.some(t => t.id === trackId)) {
+      state.activeVibe = 'all';
+      syncVibeQueue('all');
+    }
+    const q = getQueueObj();
+    if (!q.ids.length) {
+      q.ids = [trackId];
+      q.index = 0;
+    } else {
+      const existingAfter = q.ids.indexOf(trackId, q.index + 1);
+      if (existingAfter !== -1) q.ids.splice(existingAfter, 1);
+      q.ids.splice(q.index + 1, 0, trackId);
+    }
+    saveState();
+    renderFlow();
+    haptic(1);
+    showToast('Поставлено следующим');
+  }
+
+  function playTrackImmediately(trackId) {
+    const pool = getActivePool(state.activeVibe);
+    if (!pool.some(t => t.id === trackId)) {
+      state.activeVibe = 'all';
+      syncVibeQueue('all');
+    }
+    const q = getQueueObj();
+    if (!q.ids.length) {
+      q.ids = [trackId];
+      q.index = 0;
+    } else if (q.ids[q.index] !== trackId) {
+      const dupIdx = q.ids.indexOf(trackId, q.index + 1);
+      if (dupIdx !== -1) q.ids.splice(dupIdx, 1);
+      q.ids.splice(q.index + 1, 0, trackId);
+      q.index++;
+    }
+    q.time = 0;
+    stopPreview();
+    isPlaying = true;
+    saveState();
+    toggleSearch(false);
+    switchTab('flow');
+    syncNativeTrack(true);
+    renderFlow();
+  }
+
+  // --- Шторка (Очередь / Скрытые / База) ---
+  function toggleQueueSheet(open) {
+    document.getElementById('sheet-backdrop').classList.toggle('open', open);
+    document.getElementById('queue-sheet').classList.toggle('open', open);
+    if (open) {
+      renderSheetContent();
+      if (activeSheetTab === 'queue') {
+        requestAnimationFrame(() => {
+          const cur = document.querySelector('#sheet-content .q-item.current');
+          if (cur) cur.scrollIntoView({ block: 'center' });
+        });
+      }
+    }
+  }
+
+  function switchSheetTab(tab) {
+    activeSheetTab = tab;
+    document.getElementById('stab-queue').classList.toggle('active', tab === 'queue');
+    document.getElementById('stab-hidden').classList.toggle('active', tab === 'hidden');
+    document.getElementById('stab-data').classList.toggle('active', tab === 'data');
+    renderSheetContent();
+  }
+
+  function renderSheetContent() {
+    const hiddenTracks = state.tracks.filter(t => t.hidden && t.present !== false);
+    document.getElementById('stab-hidden').textContent = `Скрытые (${hiddenTracks.length})`;
+    const body = document.getElementById('sheet-content');
+    body.innerHTML = '';
+
+    if (activeSheetTab === 'queue') {
+      const q = getQueueObj();
+      if (!q.ids.length) {
+        body.innerHTML = '<div style="text-align:center; color:var(--muted); padding:32px 0; font-size:13px;">Очередь пуста</div>';
+        return;
+      }
+      q.ids.forEach((id, i) => {
+        const t = getTrack(id);
+        if (!t) return;
+        const item = document.createElement('div');
+        item.className = `q-item ${i === q.index ? 'current' : ''} ${i < q.index ? 'past' : ''}`;
+        item.onclick = () => jumpToQueueIndex(i);
+        item.innerHTML = `
+          <div class="q-idx">${i === q.index ? '▶' : i + 1}</div>
+          <div class="q-thumb">${buildArtImgHtml(t)}</div>
+          <div class="q-info">
+            <div class="q-title">${escapeHtml(t.title)}</div>
+            <div class="q-artist">${escapeHtml(t.artist)}</div>
+          </div>
+        `;
+        body.appendChild(item);
+      });
+    } else if (activeSheetTab === 'hidden') {
+      if (!hiddenTracks.length) {
+        body.innerHTML = '<div style="text-align:center; color:var(--muted); padding:32px 0; font-size:13px;">Скрытых треков нет</div>';
+        return;
+      }
+      hiddenTracks.forEach(t => {
+        const item = document.createElement('div');
+        item.className = 'q-item';
+        item.innerHTML = `
+          <div class="q-thumb">${buildArtImgHtml(t)}</div>
+          <div class="q-info">
+            <div class="q-title">${escapeHtml(t.title)}</div>
+            <div class="q-artist">${escapeHtml(t.artist)}</div>
+          </div>
+          <button class="small-action-btn">Вернуть</button>
+        `;
+        item.querySelector('.small-action-btn').onclick = e => {
+          e.stopPropagation();
+          unhideTrackById(t.id);
+        };
+        body.appendChild(item);
+      });
+    } else {
+      const presentCount = state.tracks.filter(t => t.present !== false).length;
+      const favCount = state.tracks.filter(t => t.liked && !t.hidden && t.present !== false).length;
+
+      body.innerHTML = `
+        <div class="data-panel">
+          <div class="data-card">
+            <h4>Библиотека устройства</h4>
+            <p>Активных треков: ${presentCount} · Любимых: ${favCount} · Скрытых: ${hiddenTracks.length} · Настроений: ${state.customVibes.length}.<br>Оригинальные аудиофайлы на диске не изменяются.</p>
+            <div class="setting-row">
+              <span class="setting-label">Игнорировать файлы короче 30с</span>
+              <button class="toggle-pill ${state.skipShortAudio ? 'on' : ''}" onclick="toggleSkipShort()">${state.skipShortAudio ? 'ВКЛ' : 'ВЫКЛ'}</button>
+            </div>
+            <div class="data-btn-row">
+              <button class="mini-pill" onclick="scanDeviceLibrary(true)">Пересканировать</button>
+              <button class="mini-pill" onclick="toggleQueueSheet(false); openVibesModal()">Настроения</button>
+            </div>
+          </div>
+          <div class="data-card">
+            <h4>Резервная копия базы</h4>
+            <p>Сохрани все вайбы, лайки, рейтинги и переименования в JSON-файл через системный проводник.</p>
+            <div class="data-btn-row">
+              <button class="mini-pill" onclick="exportBackupJSON()">Экспорт JSON</button>
+              <button class="mini-pill" onclick="importBackupJSON()">Импорт JSON</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function exportBackupJSON() {
+    const filename = `shard-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const payload = JSON.stringify(state, null, 2);
+    if (IS_NATIVE) {
+      window.ShardNative.exportBackup(payload, filename);
+    } else {
+      showToast('Доступно в Android-приложении');
+    }
+  }
+
+  function importBackupJSON() {
+    if (IS_NATIVE) {
+      window.ShardNative.importBackup();
+    } else {
+      showToast('Доступно в Android-приложении');
+    }
+  }
+
+  // --- СВАЙПАЛКА + НАТИВНОЕ ПРЕВЬЮ ---
+  function getPreviewStartSec(track) {
+    if (!track || !track.duration) return 0;
+    return track.duration > 85 ? 30 : Math.floor(track.duration * 0.35);
+  }
+
+  function startCardPreview(trackId) {
+    const track = getTrack(trackId);
+    if (!track || !track.mediaId) return;
+    pauseMainPlayer();
+    previewTrackId = trackId;
+    previewTime = getPreviewStartSec(track);
+    if (IS_NATIVE) {
+      window.ShardNative.startPreview(track.mediaId, Math.floor(previewTime * 1000));
+    }
+    updateCardPreviewUI();
+  }
+
+  function toggleCardPreview(trackId) {
+    const track = getTrack(trackId);
+    if (!track || !track.mediaId) return;
+    if (previewTrackId === trackId && previewPlaying) {
+      previewPlaying = false;
+      if (IS_NATIVE) window.ShardNative.setPreviewPlaying(false);
+      updateCardPreviewUI();
+      return;
+    }
+    if (previewTrackId !== trackId) {
+      startCardPreview(trackId);
+      return;
+    }
+    pauseMainPlayer();
+    previewPlaying = true;
+    if (IS_NATIVE) window.ShardNative.setPreviewPlaying(true);
+    updateCardPreviewUI();
+  }
+
+  function stopPreview() {
+    previewPlaying = false;
+    previewTrackId = null;
+    previewTime = 0;
+    if (IS_NATIVE) window.ShardNative.stopPreview();
+  }
+
+  function updateCardPreviewUI() {
+    const topCard = document.querySelector('.swipe-card.top');
+    const topId = state.swipeDeckIds[0];
+    const track = getTrack(topId);
+    if (!topCard || !track) return;
+
+    const badge = topCard.querySelector('.card-preview-badge');
+    const fill = topCard.querySelector('.card-scrub-fill');
+    const active = previewPlaying && previewTrackId === topId;
+    const shownTime = previewTrackId === topId ? previewTime : getPreviewStartSec(track);
+
+    if (badge) {
+      badge.classList.toggle('playing', active);
+      badge.innerHTML = active
+        ? `<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span>${fmtTime(shownTime)}</span>`
+        : `<svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19"/></svg><span>${fmtTime(shownTime)}</span>`;
+    }
+    if (fill) {
+      const pct = Math.max(0, Math.min(100, (shownTime / (track.duration || 1)) * 100));
+      fill.style.width = pct + '%';
+    }
+  }
+
+  function closeQuickVibePop() {
+    document.getElementById('quick-vibe-pop').classList.remove('open');
+  }
+
+  document.addEventListener('click', e => {
+    const pop = document.getElementById('quick-vibe-pop');
+    if (pop.classList.contains('open') && !e.target.closest('#quick-vibe-pop') && !e.target.closest('#leg-right-btn')) {
+      closeQuickVibePop();
+    }
+  });
+
+  function handleRightLegendClick(e) {
+    e.stopPropagation();
+    if (!state.swipeDeckIds.length || isSwipeAnimating) return;
+
+    if (!state.customVibes.length) {
+      openVibesModal();
+      return;
+    }
+    if (state.customVibes.length === 1) {
+      triggerSwipeAction('right', state.customVibes[0].id);
+      return;
+    }
+
+    const pop = document.getElementById('quick-vibe-pop');
+    if (pop.classList.contains('open')) {
+      closeQuickVibePop();
+      return;
+    }
+    pop.innerHTML = '';
+    state.customVibes.forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'qvp-item';
+      btn.textContent = v.name;
+      btn.onclick = () => {
+        closeQuickVibePop();
+        triggerSwipeAction('right', v.id);
+      };
+      pop.appendChild(btn);
+    });
+    pop.classList.add('open');
+  }
+
+  function renderRightDropRail() {
+    const rail = document.getElementById('right-drop-rail');
+    rail.innerHTML = '';
+    state.customVibes.forEach(v => {
+      const count = getActivePool(v.id).length;
+      const slot = document.createElement('div');
+      slot.className = 'drop-vibe-slot';
+      slot.dataset.vibeId = v.id;
+      slot.innerHTML = `<span class="slot-name">${escapeHtml(v.name)}</span><span class="slot-count">${count}</span>`;
+      rail.appendChild(slot);
+    });
+
+    const rightLbl = document.getElementById('leg-right-label');
+    if (state.customVibes.length === 0) rightLbl.textContent = '+ Вайб';
+    else if (state.customVibes.length === 1) rightLbl.textContent = state.customVibes[0].name;
+    else rightLbl.textContent = 'В вайб';
+  }
+
+  function renderSwipeDeck() {
+    document.getElementById('unsorted-badge').textContent = state.swipeDeckIds.length;
+    const stage = document.getElementById('deck-stage');
+
+    Array.from(stage.children).forEach(ch => {
+      if (ch.id !== 'right-drop-rail') ch.remove();
+    });
+    renderRightDropRail();
+
+    if (!state.swipeDeckIds.length) {
+      stopPreview();
+      const empty = document.createElement('div');
+      empty.style.cssText = 'text-align:center; color:var(--muted); font-size:14px;';
+      empty.innerHTML = `Колода разобрана<br><br><button class="mini-pill" onclick="refillSwipeDeck()">Пройтись ещё раз</button>`;
+      stage.appendChild(empty);
+      return;
+    }
+
+    if (state.swipeDeckIds.length > 1) {
+      const behindTrack = getTrack(state.swipeDeckIds[1]);
+      if (behindTrack) stage.appendChild(createSwipeCard(behindTrack, false));
+    }
+    const topTrack = getTrack(state.swipeDeckIds[0]);
+    if (topTrack) {
+      stage.appendChild(createSwipeCard(topTrack, true));
+      updateCardPreviewUI();
+    }
+  }
+
+  function refillSwipeDeck() {
+    state.swipeDeckIds = getActivePool('all').map(t => t.id);
+    saveState();
+    renderSwipeDeck();
+    if (state.swipeDeckIds.length > 0) startCardPreview(state.swipeDeckIds[0]);
+  }
+
+  function createSwipeCard(track, isTop) {
+    const card = document.createElement('div');
+    card.className = `swipe-card ${isTop ? 'top' : 'behind'}`;
+
+    const chipsHtml = state.customVibes.map(v => {
+      const on = track.vibes.includes(v.id);
+      return `<button class="cv-chip ${on ? 'on' : ''}" data-vid="${v.id}">${escapeHtml(v.name)}</button>`;
+    }).join('') + `<button class="cv-chip add-chip" data-add="1">+</button>`;
+
+    const centeredClass = state.customVibes.length <= 3 ? 'centered' : '';
+
+    card.innerHTML = `
+      <div class="card-art-wrap">
+        ${buildArtImgHtml(track)}
+        ${isTop ? '<div class="card-preview-badge"></div>' : ''}
+        <div class="swipe-stamp"><div class="stamp-label"></div></div>
+      </div>
+      ${isTop ? `
+        <div class="card-scrubber" title="Перемотка превью">
+          <div class="card-scrub-track"><div class="card-scrub-fill"></div></div>
+        </div>
+      ` : ''}
+      <div class="card-info">
+        <div class="card-title">${escapeHtml(track.title)}</div>
+        <div class="card-artist">${escapeHtml(track.artist)}</div>
+        <div class="card-vibe-chips ${centeredClass}">${chipsHtml}</div>
+      </div>
+    `;
+
+    if (isTop) {
+      const chipWrap = card.querySelector('.card-vibe-chips');
+      chipWrap.addEventListener('pointerdown', e => e.stopPropagation());
+
+      card.querySelectorAll('.cv-chip').forEach(chip => {
+        chip.addEventListener('click', e => {
+          e.stopPropagation();
+          if (chip.dataset.add) {
+            openVibesModal();
+            return;
+          }
+          const vid = chip.dataset.vid;
+          const idx = track.vibes.indexOf(vid);
+          if (idx === -1) track.vibes.push(vid);
+          else track.vibes.splice(idx, 1);
+          chip.classList.toggle('on', idx === -1);
+          if (state.queuesByVibe[vid]) syncVibeQueue(vid);
+          renderRightDropRail();
+          saveState();
+          haptic(1);
+        });
+      });
+
+      const scrubber = card.querySelector('.card-scrubber');
+      let cardScrubbing = false;
+      const seekCard = clientX => {
+        const rect = scrubber.getBoundingClientRect();
+        const rel = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        if (previewTrackId !== track.id) {
+          startCardPreview(track.id);
+        }
+        previewTime = rel * (track.duration || 1);
+        if (IS_NATIVE) window.ShardNative.seekPreview(Math.floor(previewTime * 1000));
+        updateCardPreviewUI();
+      };
+      scrubber.addEventListener('pointerdown', e => {
+        e.stopPropagation();
+        cardScrubbing = true;
+        scrubber.setPointerCapture(e.pointerId);
+        seekCard(e.clientX);
+      });
+      scrubber.addEventListener('pointermove', e => {
+        if (!cardScrubbing) return;
+        e.stopPropagation();
+        seekCard(e.clientX);
+      });
+      scrubber.addEventListener('pointerup', e => {
+        e.stopPropagation();
+        cardScrubbing = false;
+      });
+      scrubber.addEventListener('pointercancel', () => { cardScrubbing = false; });
+
+      attachCardPhysics(card, track.id);
+    }
+
+    return card;
+  }
+
+  function attachCardPhysics(card, trackId) {
+    let sx = 0, sy = 0, dragging = false;
+    let hoveredVibeId = null;
+    let crossedThreshold = false;
+    let movedDist = 0;
+    const stamp = card.querySelector('.swipe-stamp');
+    const stampLabel = card.querySelector('.stamp-label');
+    const rail = document.getElementById('right-drop-rail');
+
+    card.addEventListener('pointerdown', e => {
+      if (isSwipeAnimating) return;
+      if (e.clientX < EDGE_SAFE_PX || e.clientX > window.innerWidth - EDGE_SAFE_PX) return;
+      closeQuickVibePop();
+      dragging = true;
+      sx = e.clientX;
+      sy = e.clientY;
+      movedDist = 0;
+      hoveredVibeId = null;
+      crossedThreshold = false;
+      card.setPointerCapture(e.pointerId);
+      card.style.transition = 'none';
+      const behind = document.querySelector('.swipe-card.behind');
+      if (behind) behind.style.transition = 'none';
+    });
+
+    card.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - sx;
+      const dy = e.clientY - sy;
+      movedDist = Math.hypot(dx, dy);
+
+      card.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.045}deg)`;
+
+      const behind = document.querySelector('.swipe-card.behind');
+      if (behind) {
+        const p = Math.min(1, movedDist / 140);
+        behind.style.transform = `scale(${0.92 + p * 0.06}) translateY(${16 - p * 12}px)`;
+        behind.style.opacity = String(0.38 + p * 0.48);
+      }
+
+      const absX = Math.abs(dx), absY = Math.abs(dy);
+
+      if (dx > 34 && absX > absY * 0.72 && state.customVibes.length > 0) {
+        rail.classList.add('visible');
+        const slots = rail.querySelectorAll('.drop-vibe-slot');
+        let bestSlot = null, bestDist = Infinity;
+        slots.forEach(s => {
+          const r = s.getBoundingClientRect();
+          const dist = Math.abs(e.clientY - (r.top + r.height / 2));
+          if (dist < bestDist) { bestDist = dist; bestSlot = s; }
+          s.classList.remove('highlight');
+        });
+        if (bestSlot) {
+          bestSlot.classList.add('highlight');
+          if (hoveredVibeId !== bestSlot.dataset.vibeId) {
+            hoveredVibeId = bestSlot.dataset.vibeId;
+            haptic(1);
+          }
+        }
+      } else {
+        rail.classList.remove('visible');
+        hoveredVibeId = null;
+      }
+
+      const over = Math.max(absX, absY) > 84;
+      if (over && !crossedThreshold) {
+        crossedThreshold = true;
+        haptic(1);
+      } else if (!over && crossedThreshold) {
+        crossedThreshold = false;
+      }
+
+      if (Math.max(absX, absY) > 26) {
+        stamp.style.opacity = Math.min(1, Math.max(absX, absY) / 108);
+        if (hoveredVibeId) {
+          const v = getVibeById(hoveredVibeId);
+          stampLabel.textContent = v ? v.name.toUpperCase() : 'ВАЙБ';
+        } else if (absX > absY) {
+          stampLabel.textContent = dx < 0 ? 'В ПОТОК' : (state.customVibes.length ? 'ВЫБЕРИ ВАЙБ' : 'НЕТ ВАЙБОВ');
+        } else {
+          stampLabel.textContent = dy < 0 ? 'ЛЮБИМОЕ' : 'СКРЫТЬ';
+        }
+      } else {
+        stamp.style.opacity = 0;
+      }
+    });
+
+    const snapBack = () => {
+      card.style.transition = 'transform 0.24s var(--ease)';
+      card.style.transform = 'translate(0,0) rotate(0deg)';
+      stamp.style.opacity = 0;
+      resetBehindCard();
+    };
+
+    const end = e => {
+      if (!dragging) return;
+      dragging = false;
+      rail.classList.remove('visible');
+      rail.querySelectorAll('.drop-vibe-slot').forEach(s => s.classList.remove('highlight'));
+
+      if (movedDist < 8 && e.target.closest('.card-art-wrap')) {
+        snapBack();
+        toggleCardPreview(trackId);
+        return;
+      }
+
+      const dx = e.clientX - sx;
+      const dy = e.clientY - sy;
+      const absX = Math.abs(dx), absY = Math.abs(dy);
+
+      if (hoveredVibeId && dx > 70) {
+        animateAndApplySwipe(card, 'right', hoveredVibeId);
+      } else if (Math.max(absX, absY) > 84) {
+        const dir = absX > absY ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+        if (dir === 'right') {
+          if (state.customVibes.length > 0) {
+            animateAndApplySwipe(card, 'right', state.customVibes[0].id);
+          } else {
+            snapBack();
+            showToast('Сначала создай хотя бы одно настроение');
+          }
+        } else {
+          animateAndApplySwipe(card, dir);
+        }
+      } else {
+        snapBack();
+      }
+    };
+
+    card.addEventListener('pointerup', end);
+    card.addEventListener('pointercancel', end);
+  }
+
+  function resetBehindCard() {
+    const behind = document.querySelector('.swipe-card.behind');
+    if (!behind) return;
+    behind.style.transition = 'transform 0.24s var(--ease), opacity 0.24s ease';
+    behind.style.transform = '';
+    behind.style.opacity = '';
+  }
+
+  function triggerSwipeAction(dir, targetVibeId = null) {
+    if (isSwipeAnimating) return;
+    const topCard = document.querySelector('.swipe-card.top');
+    if (topCard) animateAndApplySwipe(topCard, dir, targetVibeId);
+  }
+
+  function animateAndApplySwipe(card, dir, targetVibeId = null) {
+    if (isSwipeAnimating) return;
+    isSwipeAnimating = true;
+    haptic(2);
+
+    const wasPreviewing = previewPlaying;
+    stopPreview();
+
+    const tx = dir === 'left' ? -430 : dir === 'right' ? 430 : 0;
+    const ty = dir === 'up' ? -430 : dir === 'down' ? 430 : 0;
+    card.style.transition = 'transform 0.22s var(--ease), opacity 0.18s ease';
+    card.style.transform = `translate(${tx}px, ${ty}px) rotate(${tx * 0.05}deg)`;
+    card.style.opacity = '0';
+
+    const behind = document.querySelector('.swipe-card.behind');
+    if (behind) {
+      behind.style.transition = 'transform 0.22s var(--ease), opacity 0.18s ease';
+      behind.style.transform = 'scale(1) translateY(0)';
+      behind.style.opacity = '1';
+    }
+
+    setTimeout(() => {
+      const id = state.swipeDeckIds.shift();
+      const track = getTrack(id);
+
+      if (track) {
+        state.swipeHistory.push({
+          id,
+          dir,
+          prevLiked: track.liked,
+          prevHidden: track.hidden,
+          prevVibes: [...track.vibes],
+          prevScore: track.score
+        });
+        if (state.swipeHistory.length > MAX_UNDO) state.swipeHistory.shift();
+
+        if (dir === 'left') {
+          showToast('Оставлено в Потоке');
+        } else if (dir === 'right' && targetVibeId) {
+          if (!track.vibes.includes(targetVibeId)) track.vibes.push(targetVibeId);
+          adjustScore(track, 4);
+          if (state.queuesByVibe[targetVibeId]) syncVibeQueue(targetVibeId);
+          const v = getVibeById(targetVibeId);
+          showToast(v ? `В «${v.name}»` : 'Добавлено в вайб');
+        } else if (dir === 'up') {
+          track.liked = true;
+          adjustScore(track, 12);
+          if (state.queuesByVibe.fav) syncVibeQueue('fav');
+          showToast('В Любимом');
+        } else if (dir === 'down') {
+          hideTrackById(id);
+          showToast('Скрыто');
+        }
+      }
+
+      isSwipeAnimating = false;
+      saveState();
+      renderSwipeDeck();
+      renderFlow();
+
+      if (wasPreviewing && state.swipeDeckIds.length > 0) {
+        startCardPreview(state.swipeDeckIds[0]);
+      }
+    }, 200);
+  }
+
+  function undoLastSwipe() {
+    if (isSwipeAnimating) return;
+    const last = state.swipeHistory.pop();
+    if (!last) { showToast('Нечего отменять'); return; }
+
+    stopPreview();
+    const track = getTrack(last.id);
+    if (track) {
+      track.liked = last.prevLiked;
+      track.hidden = last.prevHidden;
+      track.vibes = [...last.prevVibes];
+      track.score = last.prevScore;
+      if (!track.hidden) {
+        Object.keys(state.queuesByVibe).forEach(vibeId => syncVibeQueue(vibeId));
+      }
+    }
+    if (!state.swipeDeckIds.includes(last.id)) {
+      state.swipeDeckIds.unshift(last.id);
+    }
+
+    saveState();
+    renderSwipeDeck();
+    renderFlow();
+    haptic(1);
+    showToast('Свайп отменён');
+  }
+
+  // --- Утилиты ---
+  function fmtTime(sec) {
+    const s = Math.max(0, Math.floor(sec || 0));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r < 10 ? '0' : ''}${r}`;
+  }
+
+  let toastTimer = null;
+  function showToast(msg, actionLabel = null, onAction = null) {
+    const el = document.getElementById('toast');
+    const msgEl = document.getElementById('toast-msg');
+    const actEl = document.getElementById('toast-act');
+
+    msgEl.textContent = msg;
+    if (actionLabel && typeof onAction === 'function') {
+      actEl.textContent = actionLabel;
+      actEl.style.display = 'inline-block';
+      actEl.onclick = () => {
+        clearTimeout(toastTimer);
+        el.classList.remove('show', 'has-action');
+        onAction();
+      };
+      el.classList.add('has-action');
+    } else {
+      actEl.style.display = 'none';
+      actEl.onclick = null;
+      el.classList.remove('has-action');
+    }
+
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove('show', 'has-action');
+    }, actionLabel ? 3600 : 1850);
+  }
+
+  function renderAll() {
+    document.body.classList.toggle('bw-mode', state.bwMode);
+    document.getElementById('bw-btn').classList.toggle('active', state.bwMode);
+    document.getElementById('unsorted-badge').textContent = state.swipeDeckIds.length;
+    renderVibesBar(true);
+    renderFlow();
+    if (state.activeTab === 'swipe') renderSwipeDeck();
+  }
+
+  // Старт приложения
+  loadState();
+  renderAll();
+  if (state.activeTab === 'swipe') {
+    switchTab('swipe', true);
+  }
+  scanDeviceLibrary(false);
+</script>
+</body>
+</html>
