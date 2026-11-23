@@ -36,6 +36,8 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -44,6 +46,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -64,6 +68,7 @@ public class MainActivity extends Activity {
     private AudioManager audioManager;
     private AudioFocusRequest focusRequest;
     private boolean hasAudioFocus = false;
+    private boolean noisyRegistered = false;
 
     private MediaPlayer mainPlayer;
     private long mainMediaId = -1;
@@ -142,69 +147,103 @@ public class MainActivity extends Activity {
         }
     };
 
+    private void showCrashScreen(Throwable t) {
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        final String trace = "SHARD CRASH:\n\n" + sw.toString();
+
+        mainHandler.post(() -> {
+            try {
+                ScrollView scroll = new ScrollView(this);
+                scroll.setBackgroundColor(Color.BLACK);
+                TextView tv = new TextView(this);
+                tv.setTextColor(Color.WHITE);
+                tv.setTextSize(12);
+                tv.setPadding(32, 64, 32, 64);
+                tv.setTextIsSelectable(true);
+                tv.setText(trace);
+                scroll.addView(tv);
+                setContentView(scroll);
+            } catch (Throwable ignored) {
+            }
+        });
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setupSystemBars();
-        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        try {
+            audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
-        IntentFilter noisyFilter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(noisyReceiver, noisyFilter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(noisyReceiver, noisyFilter);
+            try {
+                IntentFilter noisyFilter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    registerReceiver(noisyReceiver, noisyFilter, Context.RECEIVER_NOT_EXPORTED);
+                } else {
+                    registerReceiver(noisyReceiver, noisyFilter);
+                }
+                noisyRegistered = true;
+            } catch (Throwable ignored) {
+            }
+
+            webView = new WebView(this);
+            webView.setBackgroundColor(Color.BLACK);
+            webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            webView.setVerticalScrollBarEnabled(false);
+            webView.setHorizontalScrollBarEnabled(false);
+
+            WebSettings settings = webView.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+            settings.setMediaPlaybackRequiresUserGesture(false);
+            settings.setAllowFileAccess(false);
+            settings.setAllowContentAccess(false);
+            settings.setTextZoom(100);
+            settings.setSupportZoom(false);
+            settings.setBuiltInZoomControls(false);
+
+            webView.addJavascriptInterface(new ShardBridge(), "ShardNative");
+            webView.setWebViewClient(new ShardWebViewClient());
+
+            setContentView(webView);
+            setupSystemBars();
+
+            webView.loadUrl("https://" + VIRTUAL_HOST + "/index.html");
+        } catch (Throwable t) {
+            showCrashScreen(t);
         }
-
-        webView = new WebView(this);
-        webView.setBackgroundColor(Color.BLACK);
-        webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        webView.setVerticalScrollBarEnabled(false);
-        webView.setHorizontalScrollBarEnabled(false);
-
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
-        settings.setTextZoom(100);
-        settings.setSupportZoom(false);
-        settings.setBuiltInZoomControls(false);
-
-        webView.addJavascriptInterface(new ShardBridge(), "ShardNative");
-        webView.setWebViewClient(new ShardWebViewClient());
-
-        setContentView(webView);
-        webView.loadUrl("https://" + VIRTUAL_HOST + "/index.html");
     }
 
     private void setupSystemBars() {
-        Window window = getWindow();
-        window.setBackgroundDrawableResource(android.R.color.black);
-        window.setStatusBarColor(Color.BLACK);
-        window.setNavigationBarColor(Color.BLACK);
+        try {
+            Window window = getWindow();
+            window.setBackgroundDrawableResource(android.R.color.black);
+            window.setStatusBarColor(Color.BLACK);
+            window.setNavigationBarColor(Color.BLACK);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(true);
-            WindowInsetsController controller = window.getInsetsController();
-            if (controller != null) {
-                controller.setSystemBarsAppearance(
-                        0,
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                                | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-                );
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.setDecorFitsSystemWindows(true);
+                WindowInsetsController controller = window.getInsetsController();
+                if (controller != null) {
+                    controller.setSystemBarsAppearance(
+                            0,
+                            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                                    | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                    );
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                View decor = window.getDecorView();
+                int flags = decor.getSystemUiVisibility();
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                }
+                decor.setSystemUiVisibility(flags);
             }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            View decor = window.getDecorView();
-            int flags = decor.getSystemUiVisibility();
-            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            }
-            decor.setSystemUiVisibility(flags);
+        } catch (Throwable ignored) {
         }
     }
 
@@ -287,9 +326,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         mainHandler.removeCallbacks(progressTicker);
-        try {
-            unregisterReceiver(noisyReceiver);
-        } catch (Exception ignored) {
+        if (noisyRegistered) {
+            try {
+                unregisterReceiver(noisyReceiver);
+            } catch (Exception ignored) {
+            }
+            noisyRegistered = false;
         }
         releaseMainPlayer();
         releasePreviewPlayer();
@@ -304,6 +346,7 @@ public class MainActivity extends Activity {
 
     private boolean requestAudioFocus() {
         if (hasAudioFocus) return true;
+        if (audioManager == null) return false;
         int res;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AudioAttributes attrs = new AudioAttributes.Builder()
@@ -366,14 +409,8 @@ public class MainActivity extends Activity {
         mainPrepared = false;
         mainMediaId = -1;
         if (mainPlayer != null) {
-            try {
-                mainPlayer.stop();
-            } catch (Exception ignored) {
-            }
-            try {
-                mainPlayer.release();
-            } catch (Exception ignored) {
-            }
+            try { mainPlayer.stop(); } catch (Exception ignored) {}
+            try { mainPlayer.release(); } catch (Exception ignored) {}
             mainPlayer = null;
         }
     }
@@ -382,14 +419,8 @@ public class MainActivity extends Activity {
         previewPrepared = false;
         previewMediaId = -1;
         if (previewPlayer != null) {
-            try {
-                previewPlayer.stop();
-            } catch (Exception ignored) {
-            }
-            try {
-                previewPlayer.release();
-            } catch (Exception ignored) {
-            }
+            try { previewPlayer.stop(); } catch (Exception ignored) {}
+            try { previewPlayer.release(); } catch (Exception ignored) {}
             previewPlayer = null;
         }
     }
@@ -403,8 +434,7 @@ public class MainActivity extends Activity {
                     int dur = mainPlayer.getDuration();
                     int target = dur > 500 ? Math.min(positionMs, dur - 300) : positionMs;
                     mainPlayer.seekTo(Math.max(0, target));
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             }
             setMainPlayingInternal(autoPlay);
             return;
@@ -482,8 +512,7 @@ public class MainActivity extends Activity {
                 if (mainPlayer.isPlaying()) mainPlayer.pause();
                 notifyPlayState(false);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     private void startPreviewInternal(long mediaId, int positionMs) {
@@ -498,8 +527,7 @@ public class MainActivity extends Activity {
                     notifyPreviewState(true);
                     ensureTickerRunning();
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
             return;
         }
 
@@ -536,8 +564,7 @@ public class MainActivity extends Activity {
                     int target = dur > 1000 ? Math.min(previewStartMs, dur - 500) : 0;
                     player.seekTo(target);
                     player.start();
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             });
             mp.setOnErrorListener((player, what, extra) -> {
                 if (token != previewLoadToken) return true;
@@ -660,10 +687,7 @@ public class MainActivity extends Activity {
                 bytes = retriever.getEmbeddedPicture();
             } catch (Exception ignored) {
             } finally {
-                try {
-                    retriever.release();
-                } catch (Exception ignored) {
-                }
+                try { retriever.release(); } catch (Exception ignored) {}
             }
         }
 
@@ -755,8 +779,7 @@ public class MainActivity extends Activity {
                         int dur = mainPlayer.getDuration();
                         int target = dur > 500 ? Math.min(mainPendingSeekMs, dur - 250) : mainPendingSeekMs;
                         mainPlayer.seekTo(Math.max(0, target));
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
                 }
             });
         }
@@ -785,8 +808,7 @@ public class MainActivity extends Activity {
                         if (previewPlayer.isPlaying()) previewPlayer.pause();
                         notifyPreviewState(false);
                     }
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             });
         }
 
@@ -798,8 +820,7 @@ public class MainActivity extends Activity {
                         int dur = previewPlayer.getDuration();
                         int target = dur > 500 ? Math.min(Math.max(0, positionMs), dur - 250) : 0;
                         previewPlayer.seekTo(target);
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
                 }
             });
         }
@@ -855,4 +876,4 @@ public class MainActivity extends Activity {
             });
         }
     }
-                                       }
+}
